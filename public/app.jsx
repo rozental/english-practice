@@ -173,31 +173,50 @@ function ParentView(){
   }
 
 // state
-const [parentCode, setParentCode] = React.useState(() => localStorage.getItem('PARENT_CODE') || 'tal-1234');
+// const [parentCode, setParentCode] = React.useState(() => localStorage.getItem('PARENT_CODE') || 'tal-1234');
+const [parentCode, setParentCode] = React.useState(
+  () => localStorage.getItem('PARENT_CODE') || 'tal-1234'
+);
 
 // שמור למכשיר, וגם לשרת
 async function saveForChild(){
   if (!preview) { alert("אין JSON תקין לטעינה"); return; }
+
+  const code = (parentCode || '').trim();
+  if (!code) { alert("חסר קוד הורה"); return; }
+
+  // שומרים מקומית כדי לזכור את הקוד
+  localStorage.setItem('PARENT_CODE', code);
+
   const payload = {
-    parent_code: parentCode,
+    parent_code: code,
     word_bank_order: preview.word_bank_order,
     items: preview.items,
-    translations_he: translations
+    translations_he: translations // אם אין לך translations, שלח []
   };
-  localStorage.setItem('PARENT_CODE', parentCode);
 
-  const r = await fetch('/api/save-set', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify(payload)
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    alert('שמירה לשרת נכשלה: ' + t);
-    return;
+  try {
+    const r = await fetch('/api/save-set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json().catch(()=> ({}));
+
+    if (!r.ok || data?.error) {
+      throw new Error(data?.detail || data?.error || `HTTP ${r.status}`);
+    }
+
+    alert(
+      `נשמר לשרת!\nלינק לילדה:\n` +
+      `${location.origin}${location.pathname}?child=1&code=${encodeURIComponent(code)}&autostart=1`
+    );
+  } catch (err) {
+    console.error('saveForChild error', err);
+    alert('שמירה לשרת נכשלה: ' + (err?.message || String(err)));
   }
-  alert('נשמר לשרת! שלח לילדה את הקישור: ' + location.origin + location.pathname + `?child=1&code=${encodeURIComponent(parentCode)}`);
 }
+
 
   React.useEffect(()=>{ if (jsonText) tryParse(jsonText); }, [jsonText]);
 
@@ -210,6 +229,15 @@ async function saveForChild(){
     className="border rounded px-2 py-1 w-full"
     value={parentCode}
     onChange={e=>setParentCode(e.target.value)}
+    placeholder="tal-1234"
+  />
+</div>
+<div className="mb-2">
+  <label className="block text-sm mb-1">קוד הורה:</label>
+  <input
+    className="border rounded px-2 py-1 w-full"
+    value={parentCode}
+    onChange={(e)=>setParentCode(e.target.value)}
     placeholder="tal-1234"
   />
 </div>
