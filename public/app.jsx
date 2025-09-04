@@ -111,8 +111,10 @@ function ParentView(){
     wb.forEach((w,i)=> { if (typeof w !== "string") throw new Error(`word_bank_order[${i}] אינו מחרוזת`); });
     items.forEach((it,idx)=>{
       if (typeof it.id !== "string") throw new Error(`items[${idx}].id חסר/לא מחרוזת`);
-      if (typeof it.hebrew_sentence !== "string" || !it.hebrew_sentence.includes("____"))
-        throw new Error(`items[${idx}].hebrew_sentence חייב לכלול "____"`);
+      if (typeof it.hebrew_sentence !== "string")
+        throw new Error(`items[${idx}].hebrew_sentence חייב להיות מחרוזת`);
+      if (it.hebrew_sentence && !it.hebrew_sentence.includes("____"))
+        throw new Error(`items[${idx}].hebrew_sentence (אם לא ריק) חייב לכלול "____"`);
       if (typeof it.english_sentence !== "string" || !it.english_sentence.includes("____"))
         throw new Error(`items[${idx}].english_sentence חייב לכלול "____"`);
       if (!Number.isInteger(it.correct_option_index) || it.correct_option_index < 0 || it.correct_option_index >= wb.length)
