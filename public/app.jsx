@@ -1,4 +1,4 @@
-// index.jsx — גרסה ללא OpenAI וללא שרת. הכל בצד לקוח (localStorage).
+// app.jsx — גרסה ללא OpenAI וללא שרת. הכל בצד לקוח (localStorage).
 
 function App() {
   const [role, setRole] = React.useState(() => {
@@ -72,7 +72,6 @@ function upsertSessionLog({ session_id, student_name, words, started_at, finishe
   window.dispatchEvent(new Event("results_updated"));
 }
 
-
 /* -------------------------
    ParentView – הזנת JSON
 ------------------------- */
@@ -91,12 +90,7 @@ function ParentView(){
         { id: "q2", hebrew_sentence: "אני לא ____ אותך", english_sentence: "I do not ____ you", correct_option_index: 1 },
         { id: "q3", hebrew_sentence: "אל ____ את החוקים", english_sentence: "Do not ____ the rules", correct_option_index: 2 },
         { id: "q4", hebrew_sentence: "היא היתה ____ מאוד", english_sentence: "She was very ____", correct_option_index: 3 },
-        { id: "q5", hebrew_sentence: "הוא הסביר ____, כדי שיבינו", english_sentence: "He explained ____, so they understand", correct_option_index: 4 },
-        { id: "q6", hebrew_sentence: "הם ____ הביתה אחרי המשחק", english_sentence: "They ____ home after the game", correct_option_index: 0 },
-        { id: "q7", hebrew_sentence: "אתה יכול ____ אותי עכשיו?", english_sentence: "Can you ____ me now?", correct_option_index: 1 },
-        { id: "q8", hebrew_sentence: "אל ____ את המורה", english_sentence: "Don't ____ the teacher", correct_option_index: 2 },
-        { id: "q9", hebrew_sentence: "הילדה היתה ____ מול כולם", english_sentence: "The girl was ____ in front of everyone", correct_option_index: 3 },
-        { id: "q10", hebrew_sentence: "הוא דיבר ____ ובבהירות", english_sentence: "He spoke ____ and clearly", correct_option_index: 4 }
+        { id: "q5", hebrew_sentence: "הוא הסביר ____, כדי שיבינו", english_sentence: "He explained ____, so they understand", correct_option_index: 4 }
       ]
     };
     setJsonText(JSON.stringify(sample, null, 2));
@@ -146,7 +140,6 @@ function ParentView(){
 
   function saveForChild(){
     if (!preview) { alert("אין JSON תקין לטעינה"); return; }
-    // נשמור "סט פעיל" לילדה
     saveJSON(LS_KEYS.WORD_BANK, preview.word_bank_order);
     saveJSON(LS_KEYS.ITEMS, preview.items);
     localStorage.setItem(LS_KEYS.SESSION_ID, sessionId);
@@ -161,11 +154,10 @@ function ParentView(){
       <p className="text-sm text-gray-600">
         פורמט מצופה:
         <code className="bg-gray-100 px-1 mx-1 rounded">word_bank_order: string[]</code>,
-        <code className="bg-gray-100 px-1 mx-1 rounded">items: 10 אובייקטים</code> עם
-        <code className="bg-gray-100 px-1 mx-1 rounded">hebrew_sentence</code>,
-        <code className="bg-gray-100 px-1 mx-1 rounded">english_sentence</code>,
+        <code className="bg-gray-100 px-1 mx-1 rounded">items: [ ... ]</code> עם
+        <code className="bg-gray-100 px-1 mx-1 rounded">hebrew_sentence</code> (ריק או כולל "____"),
+        <code className="bg-gray-100 px-1 mx-1 rounded">english_sentence</code> (חובה לכלול "____"),
         <code className="bg-gray-100 px-1 mx-1 rounded">correct_option_index</code>.
-        כל משפט חייב לכלול "____" במקום החסר.
       </p>
 
       <div className="flex gap-2 items-center">
@@ -193,7 +185,7 @@ function ParentView(){
           <ol className="list-decimal pr-5 space-y-1">
             {preview.items.map(it=> (
               <li key={it.id}>
-                <span className="font-medium">[עברית]</span> {it.hebrew_sentence}
+                <span className="font-medium">[עברית]</span> {it.hebrew_sentence || "—"}
                 <span className="text-gray-400"> (נכון: #{(it.correct_option_index??0)+1})</span>
               </li>
             ))}
@@ -274,7 +266,6 @@ function ChildView(){
     if (isRight) {
       setCorrect(v => {
         const nv = v + 1;
-        // עדכון דוחות אחרי כל תשובה
         upsertSessionLog({
           session_id: sessionId,
           student_name: name || null,
@@ -305,7 +296,6 @@ function ChildView(){
     } else {
       setWrong(v => {
         const nv = v + 1;
-        // עדכון דוחות גם כשיש טעות – נשארים על אותה שאלה
         upsertSessionLog({
           session_id: sessionId,
           student_name: name || null,
@@ -316,7 +306,7 @@ function ChildView(){
         return nv;
       });
       flashNow("טעות ❌");
-      // לא משנים cursor – נשארים על אותה שאלה כדי לנסות שוב
+      // נשארים על אותה שאלה
     }
   }
 
@@ -363,86 +353,6 @@ function ChildView(){
   );
 }
 
-
-  function start(){ setPhase(1); setCursor(0); setCorrect(0); setWrong(0); setFlash(null); }
-
-  function pick(optionIdx){
-    const q = phase===1 ? items[cursor] : shuffled[cursor];
-    const isRight = optionIdx === (q.correct_option_index ?? 0);
-    if (isRight) { setCorrect(v=>v+1); flashNow("נכון! ✅"); } else { setWrong(v=>v+1); flashNow("טעות ❌"); }
-    // מעבר לשאלה הבאה
-    const next = cursor + 1;
-    if (next < items.length) setCursor(next);
-    else if (phase===1) { setPhase(2); setCursor(0); setFlash(null); }
-    else { setPhase(3); saveResult(); }
-  }
-
-  function flashNow(msg){
-    setFlash(msg);
-    setTimeout(()=> setFlash(null), 600);
-  }
-
-  const shuffled = React.useMemo(()=>{
-    const arr = [...items];
-    for (let i=arr.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
-    return arr;
-  },[items]);
-
-  function saveResult(){
-    const log = loadJSON(LS_KEYS.LOG) || [];
-    log.unshift({
-      id: crypto.randomUUID(),
-      session_id: sessionId,
-      student_name: name || null,
-      words: wordBank,
-      started_at: Date.now(), // לא שמרנו התחלה – נשמור עכשיו או אפשר לשפר לשמור ב-start
-      finished_at: Date.now(),
-      correct, wrong
-    });
-    saveJSON(LS_KEYS.LOG, log);
-  }
-
-  if (!items?.length) {
-    return <div className="text-center text-gray-500">אין תרגיל טעון. בקש/י מהורה ליצור/להדביק JSON במסך ההורה.</div>
-  }
-
-  return (
-    <div className="space-y-4">
-      {phase===0 && (
-        <div className="bg-white p-4 rounded-2xl shadow-sm">
-          <h2 className="text-lg font-semibold mb-2">מוכנה לתרגול?</h2>
-          <div className="mb-2 text-sm">מילות מחסן: {wordBank.join(" · ")}</div>
-          <input className="border rounded-xl px-3 py-2 w-full mb-2" placeholder="שם (לא חובה)" value={name} onChange={e=>setName(e.target.value)} />
-          <button onClick={start} className="px-4 py-2 rounded-xl bg-black text-white">התחילי</button>
-        </div>
-      )}
-      {(phase===1 || phase===2) && (
-        <>
-          {flash && <div className="text-center font-medium">{flash}</div>}
-          <QuestionCard
-            title={phase===1
-              ? `[${cursor+1}/${items.length}] בחרי את המילה באנגלית שמשלימה את המשפט בעברית`
-              : `[${cursor+1}/${items.length}] בחרי את המילה באנגלית למשפט באנגלית (סדר שאלות מעורבב)`
-            }
-            sentence={(phase===1 ? items[cursor].hebrew_sentence : shuffled[cursor].english_sentence)}
-            options={fixedOrder}
-            wordBank={wordBank}
-            onPick={pick}
-          />
-          <div className="text-sm text-gray-500 text-center">נכונות: {correct} · שגיאות: {wrong}</div>
-        </>
-      )}
-      {phase===3 && (
-        <div className="bg-white p-4 rounded-2xl shadow-sm text-center">
-          <h2 className="text-lg font-semibold">כל הכבוד!</h2>
-          <p className="mt-2">נכונות: {correct} · שגיאות: {wrong}</p>
-          <p className="text-sm text-gray-500">התוצאה נשמרה ב-מכשיר (localStorage). אפשר לראות אותה במסך "דוחות".</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* -------------------------
    Question card
 ------------------------- */
@@ -476,10 +386,8 @@ function AdminView(){
       setRows(log);
     };
     load();
-    // מתעדכן אוטומטית כשהילדה עונה
     const onUpd = () => load();
     window.addEventListener("results_updated", onUpd);
-    // וגם אם לשונית אחרת/חלון אחר מעדכן localStorage
     window.addEventListener("storage", onUpd);
     return () => {
       window.removeEventListener("results_updated", onUpd);
@@ -524,39 +432,6 @@ function AdminView(){
               {" · "}
               עודכן: {r.last_updated ? new Date(r.last_updated).toLocaleString() : "—"}
             </div>
-            <div>Session: <code>{r.session_id}</code></div>
-            <div>תלמיד/ה: {r.student_name||"—"}</div>
-            <div>מילים: {(r.words||[]).join(", ")}</div>
-            <div>נכונות: {r.correct} · שגיאות: {r.wrong}</div>
-          </div>
-        ))}
-        {rows.length===0 && <div className="text-sm text-gray-500">אין עדיין תוצאות שמורות במכשיר.</div>}
-      </div>
-    </div>
-  );
-}
-
-
-  const totals = rows.reduce((acc,r)=>{ acc.sessions++; acc.correct+=r.correct||0; acc.wrong+=r.wrong||0; return acc; }, {sessions:0, correct:0, wrong:0});
-
-  return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold">דוחות – מקומי לדפדפן</h2>
-      <div className="flex gap-2">
-        <button onClick={load} className="px-3 py-2 rounded-xl bg-gray-200">רענן</button>
-        <button onClick={exportJSON} className="px-3 py-2 rounded-xl bg-gray-200">ייצא JSON</button>
-        <button onClick={clearAll} className="px-3 py-2 rounded-xl bg-red-600 text-white">נקה הכל</button>
-      </div>
-
-      <div className="bg-white p-4 rounded-2xl shadow-sm">
-        <div>סה״כ סשנים: {totals.sessions}</div>
-        <div>נכונות: {totals.correct} · שגיאות: {totals.wrong}</div>
-      </div>
-
-      <div className="space-y-2">
-        {rows.map(r=> (
-          <div key={r.id} className="bg-white p-3 rounded-xl border">
-            <div className="text-sm text-gray-500">{new Date(r.finished_at||Date.now()).toLocaleString()}</div>
             <div>Session: <code>{r.session_id}</code></div>
             <div>תלמיד/ה: {r.student_name||"—"}</div>
             <div>מילים: {(r.words||[]).join(", ")}</div>
