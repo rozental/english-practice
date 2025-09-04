@@ -1,10 +1,11 @@
-// app.jsx — גרסה ללא OpenAI וללא שרת. הכל בצד לקוח (localStorage).
+// app.jsx — ללא OpenAI/שרת. כל הלוגיקה בצד לקוח, עם תמיכה: כל השאלות בעמוד, child-only link, תרגומי מילים, צבעים מתמשכים, ודוחות חיים.
 
 function App() {
+  const params = new URLSearchParams(window.location.search);
+  const childOnly = params.get("child") === "1";
   const [role, setRole] = React.useState(() => {
-    const p = new URLSearchParams(window.location.search);
-    if (p.get("parent") === "1") return "parent";
-    if (p.get("admin") === "1") return "admin";
+    if (params.get("parent") === "1") return "parent";
+    if (params.get("admin") === "1") return "admin";
     return "child";
   });
 
@@ -12,23 +13,27 @@ function App() {
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <header className="p-4 border-b bg-white sticky top-0 z-10">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold">תרגול אנגלית – הורה/ילדה (ללא OpenAI)</h1>
-          <div className="flex gap-2">
-            <button onClick={() => setRole("child")} className={`px-3 py-1 rounded-xl ${role==="child"?"bg-black text-white":"bg-gray-200"}`}>ילדה</button>
-            <button onClick={() => setRole("parent")} className={`px-3 py-1 rounded-xl ${role==="parent"?"bg-black text-white":"bg-gray-200"}`}>הורה</button>
-            <button onClick={() => setRole("admin")} className={`px-3 py-1 rounded-xl ${role==="admin"?"bg-black text-white":"bg-gray-200"}`}>דוחות</button>
-          </div>
+          <h1 className="text-xl font-bold">תרגול אנגלית – הורה/ילדה</h1>
+          {!childOnly && (
+            <div className="flex gap-2">
+              <button onClick={() => setRole("child")} className={`px-3 py-1 rounded-xl ${role==="child"?"bg-black text-white":"bg-gray-200"}`}>ילדה</button>
+              <button onClick={() => setRole("parent")} className={`px-3 py-1 rounded-xl ${role==="parent"?"bg-black text-white":"bg-gray-200"}`}>הורה</button>
+              <button onClick={() => setRole("admin")} className={`px-3 py-1 rounded-xl ${role==="admin"?"bg-black text-white":"bg-gray-200"}`}>דוחות</button>
+            </div>
+          )}
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto p-4">
-        {role === "parent" && <ParentView/>}
-        {role === "child" && <ChildView/>}
-        {role === "admin" && <AdminView/>}
+        {role === "parent" && !childOnly && <ParentView/>}
+        {role === "child" && <ChildView childOnly={childOnly}/>}
+        {role === "admin" && !childOnly && <AdminView/>}
+        {childOnly && role!=="child" && <ChildView childOnly={true}/>}
       </main>
 
       <footer className="max-w-3xl mx-auto p-4 text-sm text-gray-500">
-        נתונים נשמרים מקומית בדפדפן (localStorage). אין שרת ואין OpenAI.
+        נתונים נשמרים מקומית בדפדפן (localStorage).
+        {" "}לקישור “ילדה בלבד”: <code>?child=1</code>
       </footer>
     </div>
   );
@@ -42,16 +47,14 @@ const LS_KEYS = {
   WORD_BANK: "last_word_bank",
   ITEMS: "last_items",
   SESSION_ID: "last_session_id",
-  LOG: "results_log", // מערך של סשנים שנשמרו
+  LOG: "results_log",           // היסטוריית סשנים
+  TRANS: "word_translations_he" // תרגום עברי לכל מילה (מיושר ל-word_bank_order)
 };
 
 function saveJSON(key, obj) { localStorage.setItem(key, JSON.stringify(obj)); }
-function loadJSON(key) {
-  try { return JSON.parse(localStorage.getItem(key)||"null"); }
-  catch { return null; }
-}
+function loadJSON(key) { try { return JSON.parse(localStorage.getItem(key)||"null"); } catch { return null; } }
 
-// ----- RESULTS LOG HELPERS -----
+// ----- דוחות (upsert) -----
 function upsertSessionLog({ session_id, student_name, words, started_at, finished_at, correct, wrong }) {
   const log = loadJSON(LS_KEYS.LOG) || [];
   const idx = log.findIndex(r => r.session_id === session_id);
@@ -68,23 +71,43 @@ function upsertSessionLog({ session_id, student_name, words, started_at, finishe
   };
   if (idx >= 0) log[idx] = row; else log.unshift(row);
   saveJSON(LS_KEYS.LOG, log);
-  // ליידע את מסך הדוחות להתעדכן מיידית
   window.dispatchEvent(new Event("results_updated"));
 }
 
 /* -------------------------
-   ParentView – הזנת JSON
+   ParentView – הזנת JSON + תרגומים
 ------------------------- */
 
 function ParentView(){
   const [jsonText, setJsonText] = React.useState("");
   const [preview, setPreview] = React.useState(null);
+  const [translations, setTranslations] = React.useState([]);
   const [error, setError] = React.useState("");
-  const [sessionId, setSessionId] = React.useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = React.useState(() => localStorage.getItem(LS_KEYS.SESSION_ID) || crypto.randomUUID());
+
+  // טוען אוטומטית את הסט האחרון
+  React.useEffect(()=>{
+    const wb = loadJSON(LS_KEYS.WORD_BANK);
+    const items = loadJSON(LS_KEYS.ITEMS);
+    const tr = loadJSON(LS_KEYS.TRANS) || [];
+    if (wb && items) {
+      const obj = { word_bank_order: wb, items, translations_he: tr };
+      setPreview(obj);
+      setTranslations(alignTranslations(wb, tr));
+      setJsonText(JSON.stringify(obj, null, 2));
+    }
+  },[]);
+
+  function alignTranslations(wb, tr) {
+    const out = Array.isArray(tr) ? [...tr] : [];
+    for (let i=0;i<wb.length;i++){ if (typeof out[i] !== "string") out[i] = ""; }
+    return out;
+    }
 
   function loadSample(){
     const sample = {
       word_bank_order: ["Walk","Understand","Ignore","Brave","Clearly"],
+      translations_he: ["ללכת","להבין","להתעלם","אמיצה/אמיץ","בבירור"],
       items: [
         { id: "q1", hebrew_sentence: "הוא ____ לבית הספר", english_sentence: "He ____ to school", correct_option_index: 0 },
         { id: "q2", hebrew_sentence: "אני לא ____ אותך", english_sentence: "I do not ____ you", correct_option_index: 1 },
@@ -95,6 +118,7 @@ function ParentView(){
     };
     setJsonText(JSON.stringify(sample, null, 2));
     setPreview(sample);
+    setTranslations(alignTranslations(sample.word_bank_order, sample.translations_he));
     setError("");
   }
 
@@ -112,8 +136,10 @@ function ParentView(){
       const obj = JSON.parse(text);
       validateSchema(obj);
       setPreview(obj);
+      setTranslations(alignTranslations(obj.word_bank_order, obj.translations_he || []));
     }catch(err){
       setPreview(null);
+      setTranslations([]);
       setError(err?.message || "JSON לא תקין");
     }
   }
@@ -127,8 +153,7 @@ function ParentView(){
     wb.forEach((w,i)=> { if (typeof w !== "string") throw new Error(`word_bank_order[${i}] אינו מחרוזת`); });
     items.forEach((it,idx)=>{
       if (typeof it.id !== "string") throw new Error(`items[${idx}].id חסר/לא מחרוזת`);
-      if (typeof it.hebrew_sentence !== "string")
-        throw new Error(`items[${idx}].hebrew_sentence חייב להיות מחרוזת`);
+      if (typeof it.hebrew_sentence !== "string") throw new Error(`items[${idx}].hebrew_sentence חייב להיות מחרוזת`);
       if (it.hebrew_sentence && !it.hebrew_sentence.includes("____"))
         throw new Error(`items[${idx}].hebrew_sentence (אם לא ריק) חייב לכלול "____"`);
       if (typeof it.english_sentence !== "string" || !it.english_sentence.includes("____"))
@@ -136,29 +161,33 @@ function ParentView(){
       if (!Number.isInteger(it.correct_option_index) || it.correct_option_index < 0 || it.correct_option_index >= wb.length)
         throw new Error(`items[${idx}].correct_option_index מחוץ לטווח אפשרויות`);
     });
+    if (obj.translations_he && (!Array.isArray(obj.translations_he) || obj.translations_he.length !== wb.length)) {
+      throw new Error("translations_he (אם קיים) חייב להיות מערך באורך word_bank_order");
+    }
+  }
+
+  function updateTranslation(i, val){
+    const next = [...translations];
+    next[i] = val;
+    setTranslations(next);
   }
 
   function saveForChild(){
     if (!preview) { alert("אין JSON תקין לטעינה"); return; }
-    saveJSON(LS_KEYS.WORD_BANK, preview.word_bank_order);
-    saveJSON(LS_KEYS.ITEMS, preview.items);
+    const wb = preview.word_bank_order;
+    const items = preview.items;
+    saveJSON(LS_KEYS.WORD_BANK, wb);
+    saveJSON(LS_KEYS.ITEMS, items);
+    saveJSON(LS_KEYS.TRANS, alignTranslations(wb, translations));
     localStorage.setItem(LS_KEYS.SESSION_ID, sessionId);
-    alert("נשמר! כעת אפשר לעבור למסך הילדה ולהתחיל תרגול.");
+    alert("נשמר! כעת הילדה יכולה להיכנס ל־?child=1 ולהתחיל תרגול.");
   }
 
   React.useEffect(()=>{ if (jsonText) tryParse(jsonText); }, [jsonText]);
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">מצב הורה – הדבק/העלה JSON של התרגיל</h2>
-      <p className="text-sm text-gray-600">
-        פורמט מצופה:
-        <code className="bg-gray-100 px-1 mx-1 rounded">word_bank_order: string[]</code>,
-        <code className="bg-gray-100 px-1 mx-1 rounded">items: [ ... ]</code> עם
-        <code className="bg-gray-100 px-1 mx-1 rounded">hebrew_sentence</code> (ריק או כולל "____"),
-        <code className="bg-gray-100 px-1 mx-1 rounded">english_sentence</code> (חובה לכלול "____"),
-        <code className="bg-gray-100 px-1 mx-1 rounded">correct_option_index</code>.
-      </p>
+      <h2 className="text-lg font-semibold">מצב הורה – הדבק/העלה JSON, ועדכן תרגומים</h2>
 
       <div className="flex gap-2 items-center">
         <button onClick={loadSample} className="px-3 py-2 rounded-xl bg-gray-200">טען דוגמה</button>
@@ -170,80 +199,94 @@ function ParentView(){
 
       <textarea
         className="w-full p-3 border rounded-xl font-mono"
-        rows={14}
-        placeholder='{"word_bank_order":["Walk",...],"items":[...]}'
+        rows={12}
+        placeholder='{"word_bank_order":["Walk",...],"items":[...],"translations_he":["...", ...]}'
         value={jsonText}
         onChange={e=>setJsonText(e.target.value)}
       ></textarea>
 
-      {error && <div className="text-red-600">{error}</div>}
-
       {preview && (
-        <div className="border rounded-xl p-3 bg-white">
-          <h3 className="font-semibold mb-2">תצוגת מקדימה</h3>
-          <div className="text-sm mb-2">מילות מחסן (סדר קבוע): {preview.word_bank_order.join(" · ")}</div>
-          <ol className="list-decimal pr-5 space-y-1">
-            {preview.items.map(it=> (
-              <li key={it.id}>
-                <span className="font-medium">[עברית]</span> {it.hebrew_sentence || "—"}
-                <span className="text-gray-400"> (נכון: #{(it.correct_option_index??0)+1})</span>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-sm">Session:</span>
-            <code className="text-sm px-2 py-1 rounded bg-gray-100">{sessionId}</code>
+        <>
+          <div className="bg-white border rounded-xl p-3">
+            <h3 className="font-semibold mb-2">תרגומים למחסן המילים</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {preview.word_bank_order.map((w, i)=>(
+                <div key={i} className="flex items-center gap-2">
+                  <span className="px-2 py-1 rounded bg-gray-100 font-mono">{w}</span>
+                  <input className="flex-1 border rounded px-2 py-1" placeholder="תרגום לעברית" value={translations[i]||""} onChange={e=>updateTranslation(i, e.target.value)} />
+                </div>
+              ))}
+            </div>
+            <button onClick={saveForChild} className="mt-3 px-4 py-2 rounded-xl bg-black text-white">שמור ופתח לתרגול</button>
           </div>
-          <button onClick={saveForChild} className="mt-3 px-4 py-2 rounded-xl bg-black text-white">שמור ופתח לתרגול</button>
-        </div>
+
+          <div className="border rounded-xl p-3 bg-white">
+            <h3 className="font-semibold mb-2">תצוגת מקדימה</h3>
+            <div className="text-sm mb-2">
+              מחסן מילים: {preview.word_bank_order.map((w,i)=>`${w} (${translations[i]||"—"})`).join(" · ")}
+            </div>
+            <ol className="list-decimal pr-5 space-y-1">
+              {preview.items.map(it=> (
+                <li key={it.id}>
+                  <span className="font-medium">[עברית]</span> {it.hebrew_sentence || "—"}
+                  <span className="text-gray-400"> (נכון: #{(it.correct_option_index??0)+1})</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </>
       )}
+
+      {error && <div className="text-red-600">{error}</div>}
     </div>
   );
 }
 
 /* -------------------------
-   ChildView – תרגול
+   ChildView – כל השאלות בעמוד + צבעים מתמשכים
 ------------------------- */
 
-function ChildView(){
+function ChildView({ childOnly }){
   const [name, setName] = React.useState("");
-  const [phase, setPhase] = React.useState(0); // 0=הכנה, 1=עברית→אנגלית, 2=אנגלית→אנגלית (מעורב), 3=סיום
   const [items, setItems] = React.useState([]);
   const [wordBank, setWordBank] = React.useState([]);
+  const [translations, setTranslations] = React.useState([]);
   const [sessionId, setSessionId] = React.useState("");
-  const [fixedOrder, setFixedOrder] = React.useState([]);
-  const [cursor, setCursor] = React.useState(0);
-  const [correct, setCorrect] = React.useState(0);
-  const [wrong, setWrong] = React.useState(0);
-  const [flash, setFlash] = React.useState(null);
+  const [answers, setAnswers] = React.useState({}); // { [itemId]: { correctClicks: number, wrongClicks: number, picked: { [optIdx]: "green"|"red" } } }
   const sessionStartRef = React.useRef(null);
 
   React.useEffect(()=>{
-    const wb = loadJSON(LS_KEYS.WORD_BANK);
-    const it = loadJSON(LS_KEYS.ITEMS);
+    const wb = loadJSON(LS_KEYS.WORD_BANK) || [];
+    const it = loadJSON(LS_KEYS.ITEMS) || [];
+    const tr = loadJSON(LS_KEYS.TRANS) || [];
     const sid = localStorage.getItem(LS_KEYS.SESSION_ID) || crypto.randomUUID();
-    if (wb && it) {
-      setWordBank(wb);
-      setItems(it);
-      setSessionId(sid);
-      setFixedOrder(wb.map((_,idx)=>idx));
-    }
+    setWordBank(wb);
+    setItems(prepareItems(it)); // נחלק לשתי קבוצות: עברית->אנגלית ואנגלית->אנגלית מעורב
+    setTranslations(alignTranslations(wb, tr));
+    setSessionId(sid);
   },[]);
 
-  const shuffled = React.useMemo(()=>{
-    const arr = [...items];
-    for (let i=arr.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
-    return arr;
-  },[items]);
+  function alignTranslations(wb, tr) {
+    const out = Array.isArray(tr) ? [...tr] : [];
+    for (let i=0;i<wb.length;i++){ if (typeof out[i] !== "string") out[i] = ""; }
+    return out;
+  }
+
+  function prepareItems(base) {
+    if (!Array.isArray(base)) return [];
+    const heb = base.filter(q => q.hebrew_sentence && q.hebrew_sentence.includes("____"));
+    const engSrc = base.filter(q => q.english_sentence && q.english_sentence.includes("____"));
+    // ערבוב לאנגלית
+    const eng = [...engSrc];
+    for (let i=eng.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [eng[i], eng[j]] = [eng[j], eng[i]]; }
+    // מצמידים הכל לרשימה אחת עם שדות עזר
+    const tag = (q, type) => ({...q, _type:type}); // type: "he"|"en"
+    return [...heb.map(q=>tag(q,"he")), ...eng.map(q=>tag(q,"en"))];
+  }
 
   function start(){
-    setPhase(1);
-    setCursor(0);
-    setCorrect(0);
-    setWrong(0);
-    setFlash(null);
+    if (!items.length || !wordBank.length) return;
     sessionStartRef.current = Date.now();
-    // רושמים פתיחת סשן בלוג
     upsertSessionLog({
       session_id: sessionId,
       student_name: name || null,
@@ -254,120 +297,107 @@ function ChildView(){
     });
   }
 
-  function flashNow(msg){
-    setFlash(msg);
-    setTimeout(()=> setFlash(null), 600);
-  }
+  // לחיצה על תשובה => צובע, מעדכן מונים, משאיר הכל גלוי
+  function onPick(item, optIdx){
+    const isRight = optIdx === (item.correct_option_index ?? 0);
+    setAnswers(prev => {
+      const prevRow = prev[item.id] || { correctClicks:0, wrongClicks:0, picked:{} };
+      const picked = {...prevRow.picked};
+      picked[optIdx] = isRight ? "green" : "red";
+      const row = {
+        correctClicks: prevRow.correctClicks + (isRight ? 1 : 0),
+        wrongClicks: prevRow.wrongClicks + (!isRight ? 1 : 0),
+        picked
+      };
+      const next = {...prev, [item.id]: row};
 
-  function pick(optionIdx){
-    const q = phase===1 ? items[cursor] : shuffled[cursor];
-    const isRight = optionIdx === (q.correct_option_index ?? 0);
-
-    if (isRight) {
-      setCorrect(v => {
-        const nv = v + 1;
-        upsertSessionLog({
-          session_id: sessionId,
-          student_name: name || null,
-          words: wordBank,
-          correct: nv,
-          wrong
-        });
-        return nv;
+      // סכימה לכלל התרגיל כדי לעדכן דוחות בזמן אמת
+      const totals = Object.values(next).reduce((a,r)=>({correct:a.correct+r.correctClicks, wrong:a.wrong+r.wrongClicks}), {correct:0, wrong:0});
+      upsertSessionLog({
+        session_id: sessionId,
+        student_name: name || null,
+        words: wordBank,
+        correct: totals.correct,
+        wrong: totals.wrong
       });
-      flashNow("נכון! ✅");
 
-      // מעבר לשאלה הבאה רק אם נכון
-      const next = cursor + 1;
-      if (next < items.length) {
-        setCursor(next);
-      } else if (phase === 1) {
-        setPhase(2);
-        setCursor(0);
-        setFlash(null);
-      } else {
-        // סיום
-        setPhase(3);
-        upsertSessionLog({
-          session_id: sessionId,
-          finished_at: Date.now(),
-        });
-      }
-    } else {
-      setWrong(v => {
-        const nv = v + 1;
-        upsertSessionLog({
-          session_id: sessionId,
-          student_name: name || null,
-          words: wordBank,
-          correct,
-          wrong: nv
-        });
-        return nv;
-      });
-      flashNow("טעות ❌");
-      // נשארים על אותה שאלה
-    }
+      return next;
+    });
   }
 
   if (!items?.length) {
     return <div className="text-center text-gray-500">אין תרגיל טעון. בקש/י מהורה ליצור/להדביק JSON במסך ההורה.</div>
   }
 
+  const totals = Object.values(answers).reduce((a,r)=>({correct:a.correct+r.correctClicks, wrong:a.wrong+r.wrongClicks}), {correct:0, wrong:0});
+
   return (
     <div className="space-y-4">
-      {phase===0 && (
+      {!childOnly && (
         <div className="bg-white p-4 rounded-2xl shadow-sm">
           <h2 className="text-lg font-semibold mb-2">מוכנה לתרגול?</h2>
-          <div className="mb-2 text-sm">מילות מחסן: {wordBank.join(" · ")}</div>
           <input className="border rounded-xl px-3 py-2 w-full mb-2" placeholder="שם (לא חובה)" value={name} onChange={e=>setName(e.target.value)} />
           <button onClick={start} className="px-4 py-2 rounded-xl bg-black text-white">התחילי</button>
         </div>
       )}
 
-      {(phase===1 || phase===2) && (
-        <>
-          {flash && <div className="text-center font-medium">{flash}</div>}
-          <QuestionCard
-            title={phase===1
-              ? `[${cursor+1}/${items.length}] בחרי את המילה באנגלית שמשלימה את המשפט בעברית`
-              : `[${cursor+1}/${items.length}] בחרי את המילה באנגלית למשפט באנגלית (סדר שאלות מעורבב)`
-            }
-            sentence={(phase===1 ? items[cursor].hebrew_sentence : shuffled[cursor].english_sentence)}
-            options={fixedOrder}
-            wordBank={wordBank}
-            onPick={pick}
-          />
-          <div className="text-sm text-gray-500 text-center">נכונות: {correct} · שגיאות: {wrong}</div>
-        </>
-      )}
-
-      {phase===3 && (
-        <div className="bg-white p-4 rounded-2xl shadow-sm text-center">
-          <h2 className="text-lg font-semibold">כל הכבוד!</h2>
-          <p className="mt-2">נכונות: {correct} · שגיאות: {wrong}</p>
-          <p className="text-sm text-gray-500">התוצאה נשמרה ומתעדכנת בדוחות.</p>
+      {/* מחסן מילים עם תרגום */}
+      <div className="bg-white p-3 rounded-2xl shadow-sm">
+        <h3 className="font-semibold mb-2">מחסן מילים</h3>
+        <div className="flex flex-wrap gap-2">
+          {wordBank.map((w,i)=>(
+            <span key={i} className="px-2 py-1 rounded-xl bg-gray-100 text-sm">
+              {w}{translations[i] ? ` — ${translations[i]}` : ""}
+            </span>
+          ))}
         </div>
-      )}
+      </div>
+
+      {/* כל השאלות בעמוד */}
+      <div className="space-y-4">
+        {items.map((q, idx)=>(
+          <QuestionBlock
+            key={q.id || idx}
+            index={idx}
+            q={q}
+            wordBank={wordBank}
+            onPick={onPick}
+            pickedMap={(answers[q.id]?.picked)||{}}
+          />
+        ))}
+      </div>
+
+      <div className="text-center text-sm text-gray-600">
+        נכונות: {totals.correct} · שגיאות: {totals.wrong}
+      </div>
     </div>
   );
 }
 
-/* -------------------------
-   Question card
-------------------------- */
+function QuestionBlock({ index, q, wordBank, onPick, pickedMap }){
+  const title = q._type==="he"
+    ? `[${index+1}] בחרי את המילה באנגלית שמשלימה את המשפט בעברית`
+    : `[${index+1}] בחרי את המילה באנגלית למשפט באנגלית (סדר Melange)`;
 
-function QuestionCard({ title, sentence, options, wordBank, onPick }){
   return (
     <div className="bg-white p-4 rounded-2xl shadow-sm">
       <h3 className="font-semibold mb-3">{title}</h3>
-      <div className="mb-4 text-lg">{sentence}</div>
+      <div className="mb-4 text-lg">{q._type==="he" ? q.hebrew_sentence : q.english_sentence}</div>
       <div className="grid grid-cols-2 gap-2">
-        {options.map((idx)=> (
-          <button key={idx} onClick={()=>onPick(idx)} className="px-3 py-3 rounded-xl border hover:shadow active:translate-y-[1px]">
-            {wordBank[idx]}
-          </button>
-        ))}
+        {wordBank.map((word, optIdx)=> {
+          const color = pickedMap[optIdx]==="green" ? "bg-green-100 border-green-400"
+                      : pickedMap[optIdx]==="red"   ? "bg-red-100 border-red-300"
+                      : "bg-white";
+          return (
+            <button
+              key={optIdx}
+              onClick={()=>onPick(q, optIdx)}
+              className={`px-3 py-3 rounded-xl border ${color} hover:shadow active:translate-y-[1px] text-left`}
+            >
+              {word}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -381,10 +411,7 @@ function AdminView(){
   const [rows, setRows] = React.useState([]);
 
   React.useEffect(()=>{
-    const load = () => {
-      const log = loadJSON(LS_KEYS.LOG) || [];
-      setRows(log);
-    };
+    const load = () => { setRows(loadJSON(LS_KEYS.LOG) || []); };
     load();
     const onUpd = () => load();
     window.addEventListener("results_updated", onUpd);
