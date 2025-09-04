@@ -107,7 +107,7 @@ function ParentView(){
     const wb = obj.word_bank_order;
     const items = obj.items;
     if (!Array.isArray(wb) || wb.length === 0) throw new Error("word_bank_order חייב להיות מערך מחרוזות");
-    if (!Array.isArray(items) || items.length !== 10) throw new Error("items חייב להכיל בדיוק 10 שאלות");
+    if (!Array.isArray(items) || items.length === 0) throw new Error("items חייב להיות מערך עם לפחות שאלה אחת");
     wb.forEach((w,i)=> { if (typeof w !== "string") throw new Error(`word_bank_order[${i}] אינו מחרוזת`); });
     items.forEach((it,idx)=>{
       if (typeof it.id !== "string") throw new Error(`items[${idx}].id חסר/לא מחרוזת`);
