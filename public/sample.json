@@ -1,0 +1,15 @@
+{
+  "word_bank_order": ["Walk","Understand","Ignore","Brave","Clearly"],
+  "items": [
+    { "id": "q1",  "hebrew_sentence": "הוא ____ לבית הספר",         "english_sentence": "He ____ to school",                       "correct_option_index": 0 },
+    { "id": "q2",  "hebrew_sentence": "אני לא ____ אותך",             "english_sentence": "I do not ____ you",                        "correct_option_index": 1 },
+    { "id": "q3",  "hebrew_sentence": "אל ____ את החוקים",            "english_sentence": "Do not ____ the rules",                    "correct_option_index": 2 },
+    { "id": "q4",  "hebrew_sentence": "היא היתה ____ מאוד",           "english_sentence": "She was very ____",                        "correct_option_index": 3 },
+    { "id": "q5",  "hebrew_sentence": "הוא הסביר ____, כדי שיבינו",   "english_sentence": "He explained ____, so they understand",    "correct_option_index": 4 },
+    { "id": "q6",  "hebrew_sentence": "הם ____ הביתה אחרי המשחק",     "english_sentence": "They ____ home after the game",            "correct_option_index": 0 },
+    { "id": "q7",  "hebrew_sentence": "אתה יכול ____ אותי עכשיו?",    "english_sentence": "Can you ____ me now?",                     "correct_option_index": 1 },
+    { "id": "q8",  "hebrew_sentence": "אל ____ את המורה",             "english_sentence": "Don't ____ the teacher",                   "correct_option_index": 2 },
+    { "id": "q9",  "hebrew_sentence": "הילדה היתה ____ מול כולם",     "english_sentence": "The girl was ____ in front of everyone",   "correct_option_index": 3 },
+    { "id": "q10", "hebrew_sentence": "הוא דיבר ____ ובבהירות",      "english_sentence": "He spoke ____ and clearly",                "correct_option_index": 4 }
+  ]
+}
