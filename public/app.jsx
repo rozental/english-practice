@@ -51,6 +51,28 @@ function loadJSON(key) {
   catch { return null; }
 }
 
+// ----- RESULTS LOG HELPERS -----
+function upsertSessionLog({ session_id, student_name, words, started_at, finished_at, correct, wrong }) {
+  const log = loadJSON(LS_KEYS.LOG) || [];
+  const idx = log.findIndex(r => r.session_id === session_id);
+  const row = {
+    id: idx >= 0 ? log[idx].id : crypto.randomUUID(),
+    session_id,
+    student_name: student_name ?? (idx >= 0 ? log[idx].student_name : null),
+    words: words ?? (idx >= 0 ? log[idx].words : []),
+    started_at: started_at ?? (idx >= 0 ? log[idx].started_at : Date.now()),
+    finished_at: finished_at ?? (idx >= 0 ? log[idx].finished_at : null),
+    correct: Number.isFinite(correct) ? correct : (idx >= 0 ? log[idx].correct : 0),
+    wrong: Number.isFinite(wrong) ? wrong : (idx >= 0 ? log[idx].wrong : 0),
+    last_updated: Date.now()
+  };
+  if (idx >= 0) log[idx] = row; else log.unshift(row);
+  saveJSON(LS_KEYS.LOG, log);
+  // ליידע את מסך הדוחות להתעדכן מיידית
+  window.dispatchEvent(new Event("results_updated"));
+}
+
+
 /* -------------------------
    ParentView – הזנת JSON
 ------------------------- */
@@ -201,7 +223,8 @@ function ChildView(){
   const [cursor, setCursor] = React.useState(0);
   const [correct, setCorrect] = React.useState(0);
   const [wrong, setWrong] = React.useState(0);
-  const [flash, setFlash] = React.useState(null); // הודעת פידבק קצרה
+  const [flash, setFlash] = React.useState(null);
+  const sessionStartRef = React.useRef(null);
 
   React.useEffect(()=>{
     const wb = loadJSON(LS_KEYS.WORD_BANK);
@@ -211,9 +234,135 @@ function ChildView(){
       setWordBank(wb);
       setItems(it);
       setSessionId(sid);
-      setFixedOrder(wb.map((_,idx)=>idx)); // 0..n-1 — סדר קבוע
+      setFixedOrder(wb.map((_,idx)=>idx));
     }
   },[]);
+
+  const shuffled = React.useMemo(()=>{
+    const arr = [...items];
+    for (let i=arr.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+    return arr;
+  },[items]);
+
+  function start(){
+    setPhase(1);
+    setCursor(0);
+    setCorrect(0);
+    setWrong(0);
+    setFlash(null);
+    sessionStartRef.current = Date.now();
+    // רושמים פתיחת סשן בלוג
+    upsertSessionLog({
+      session_id: sessionId,
+      student_name: name || null,
+      words: wordBank,
+      started_at: sessionStartRef.current,
+      correct: 0,
+      wrong: 0
+    });
+  }
+
+  function flashNow(msg){
+    setFlash(msg);
+    setTimeout(()=> setFlash(null), 600);
+  }
+
+  function pick(optionIdx){
+    const q = phase===1 ? items[cursor] : shuffled[cursor];
+    const isRight = optionIdx === (q.correct_option_index ?? 0);
+
+    if (isRight) {
+      setCorrect(v => {
+        const nv = v + 1;
+        // עדכון דוחות אחרי כל תשובה
+        upsertSessionLog({
+          session_id: sessionId,
+          student_name: name || null,
+          words: wordBank,
+          correct: nv,
+          wrong
+        });
+        return nv;
+      });
+      flashNow("נכון! ✅");
+
+      // מעבר לשאלה הבאה רק אם נכון
+      const next = cursor + 1;
+      if (next < items.length) {
+        setCursor(next);
+      } else if (phase === 1) {
+        setPhase(2);
+        setCursor(0);
+        setFlash(null);
+      } else {
+        // סיום
+        setPhase(3);
+        upsertSessionLog({
+          session_id: sessionId,
+          finished_at: Date.now(),
+        });
+      }
+    } else {
+      setWrong(v => {
+        const nv = v + 1;
+        // עדכון דוחות גם כשיש טעות – נשארים על אותה שאלה
+        upsertSessionLog({
+          session_id: sessionId,
+          student_name: name || null,
+          words: wordBank,
+          correct,
+          wrong: nv
+        });
+        return nv;
+      });
+      flashNow("טעות ❌");
+      // לא משנים cursor – נשארים על אותה שאלה כדי לנסות שוב
+    }
+  }
+
+  if (!items?.length) {
+    return <div className="text-center text-gray-500">אין תרגיל טעון. בקש/י מהורה ליצור/להדביק JSON במסך ההורה.</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {phase===0 && (
+        <div className="bg-white p-4 rounded-2xl shadow-sm">
+          <h2 className="text-lg font-semibold mb-2">מוכנה לתרגול?</h2>
+          <div className="mb-2 text-sm">מילות מחסן: {wordBank.join(" · ")}</div>
+          <input className="border rounded-xl px-3 py-2 w-full mb-2" placeholder="שם (לא חובה)" value={name} onChange={e=>setName(e.target.value)} />
+          <button onClick={start} className="px-4 py-2 rounded-xl bg-black text-white">התחילי</button>
+        </div>
+      )}
+
+      {(phase===1 || phase===2) && (
+        <>
+          {flash && <div className="text-center font-medium">{flash}</div>}
+          <QuestionCard
+            title={phase===1
+              ? `[${cursor+1}/${items.length}] בחרי את המילה באנגלית שמשלימה את המשפט בעברית`
+              : `[${cursor+1}/${items.length}] בחרי את המילה באנגלית למשפט באנגלית (סדר שאלות מעורבב)`
+            }
+            sentence={(phase===1 ? items[cursor].hebrew_sentence : shuffled[cursor].english_sentence)}
+            options={fixedOrder}
+            wordBank={wordBank}
+            onPick={pick}
+          />
+          <div className="text-sm text-gray-500 text-center">נכונות: {correct} · שגיאות: {wrong}</div>
+        </>
+      )}
+
+      {phase===3 && (
+        <div className="bg-white p-4 rounded-2xl shadow-sm text-center">
+          <h2 className="text-lg font-semibold">כל הכבוד!</h2>
+          <p className="mt-2">נכונות: {correct} · שגיאות: {wrong}</p>
+          <p className="text-sm text-gray-500">התוצאה נשמרה ומתעדכנת בדוחות.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
   function start(){ setPhase(1); setCursor(0); setCorrect(0); setWrong(0); setFlash(null); }
 
@@ -320,12 +469,24 @@ function QuestionCard({ title, sentence, options, wordBank, onPick }){
 
 function AdminView(){
   const [rows, setRows] = React.useState([]);
-  React.useEffect(()=>{ load(); },[]);
 
-  function load(){
-    const log = loadJSON(LS_KEYS.LOG) || [];
-    setRows(log);
-  }
+  React.useEffect(()=>{
+    const load = () => {
+      const log = loadJSON(LS_KEYS.LOG) || [];
+      setRows(log);
+    };
+    load();
+    // מתעדכן אוטומטית כשהילדה עונה
+    const onUpd = () => load();
+    window.addEventListener("results_updated", onUpd);
+    // וגם אם לשונית אחרת/חלון אחר מעדכן localStorage
+    window.addEventListener("storage", onUpd);
+    return () => {
+      window.removeEventListener("results_updated", onUpd);
+      window.removeEventListener("storage", onUpd);
+    };
+  },[]);
+
   function clearAll(){
     if (!confirm("למחוק את כל היסטוריית התוצאות במכשיר?")) return;
     localStorage.removeItem(LS_KEYS.LOG);
@@ -339,6 +500,42 @@ function AdminView(){
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  const totals = rows.reduce((acc,r)=>{ acc.sessions++; acc.correct+=r.correct||0; acc.wrong+=r.wrong||0; return acc; }, {sessions:0, correct:0, wrong:0});
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">דוחות – מקומי לדפדפן (מתעדכן בזמן אמת)</h2>
+      <div className="flex gap-2">
+        <button onClick={exportJSON} className="px-3 py-2 rounded-xl bg-gray-200">ייצא JSON</button>
+        <button onClick={clearAll} className="px-3 py-2 rounded-xl bg-red-600 text-white">נקה הכל</button>
+      </div>
+
+      <div className="bg-white p-4 rounded-2xl shadow-sm">
+        <div>סה״כ סשנים: {totals.sessions}</div>
+        <div>נכונות: {totals.correct} · שגיאות: {totals.wrong}</div>
+      </div>
+
+      <div className="space-y-2">
+        {rows.map(r=> (
+          <div key={r.id} className="bg-white p-3 rounded-xl border">
+            <div className="text-sm text-gray-500">
+              התחיל: {r.started_at ? new Date(r.started_at).toLocaleString() : "—"}
+              {" · "}
+              עודכן: {r.last_updated ? new Date(r.last_updated).toLocaleString() : "—"}
+            </div>
+            <div>Session: <code>{r.session_id}</code></div>
+            <div>תלמיד/ה: {r.student_name||"—"}</div>
+            <div>מילים: {(r.words||[]).join(", ")}</div>
+            <div>נכונות: {r.correct} · שגיאות: {r.wrong}</div>
+          </div>
+        ))}
+        {rows.length===0 && <div className="text-sm text-gray-500">אין עדיין תוצאות שמורות במכשיר.</div>}
+      </div>
+    </div>
+  );
+}
+
 
   const totals = rows.reduce((acc,r)=>{ acc.sessions++; acc.correct+=r.correct||0; acc.wrong+=r.wrong||0; return acc; }, {sessions:0, correct:0, wrong:0});
 
