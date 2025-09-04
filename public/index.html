@@ -1,0 +1,21 @@
+<!doctype html>
+<html dir="rtl" lang="he">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- טעינת React ו-ReactDOM מה-CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- טעינת TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>תרגול אנגלית – הורה/ילדה</title>
+  </head>
+  <body class="bg-gray-50">
+    <div id="root"></div>
+    <script type="module">
+      import App from "../index.jsx";
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(React.createElement(App));
+    </script>
+  </body>
+</html>
