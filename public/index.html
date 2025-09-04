@@ -3,19 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- React + ReactDOM from CDN -->
+    <!-- React + ReactDOM מה-CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- TailwindCSS from CDN -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>תרגול אנגלית – הורה/ילדה (ללא OpenAI)</title>
+    <!-- Babel Standalone – מאפשר לטעון JSX ישירות בדפדפן -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>תרגול אנגלית – הורה/ילדה</title>
   </head>
   <body class="bg-gray-50">
     <div id="root"></div>
-    <script type="module">
-      import App from "../index.jsx";
-      const root = ReactDOM.createRoot(document.getElementById("root"));
-      root.render(React.createElement(App));
+
+    <!-- טוענים את קובץ ה-JSX מה-public באמצעות Babel -->
+    <script type="text/babel" data-type="module" src="./app.jsx"></script>
+    <script type="text/babel">
+      // מרנדרים את האפליקציה (App מוגדר בתוך app.jsx כ- global)
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
     </script>
   </body>
 </html>
