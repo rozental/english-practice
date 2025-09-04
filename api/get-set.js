@@ -1,5 +1,6 @@
 // api/get-set.js
 export default async function handler(req, res) {
+res.setHeader('Cache-Control', 'no-store');
   try {
     const code = req.query?.code || new URL(req.url, "http://x").searchParams.get("code");
     if (!code) return res.status(400).json({ error: "code missing" });

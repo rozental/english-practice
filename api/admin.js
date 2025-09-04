@@ -2,6 +2,7 @@
 export const config = { runtime: "edge" };
 
 export default async function handler(req) {
+res.setHeader('Cache-Control', 'no-store');
   // CORS basic (לא חובה בוורסל, אבל עוזר לכלים חיצוניים)
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",

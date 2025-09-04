@@ -299,25 +299,41 @@ async function saveForChild(){
    ChildView – כל השאלות בעמוד + צבעים מתמשכים
 ------------------------- */
 
-function ChildView({ childOnly }){
-  const [name, setName] = React.useState("");
-  const [items, setItems] = React.useState([]);
-  const [wordBank, setWordBank] = React.useState([]);
-  const [translations, setTranslations] = React.useState([]);
-  const [sessionId, setSessionId] = React.useState("");
-  const [answers, setAnswers] = React.useState({}); // { [itemId]: { correctClicks: number, wrongClicks: number, picked: { [optIdx]: "green"|"red" } } }
-  const sessionStartRef = React.useRef(null);
+function ChildView({ childOnly, autostart, showBank = true }){
+  // ... states ...
 
   React.useEffect(()=>{
-    const wb = loadJSON(LS_KEYS.WORD_BANK) || [];
-    const it = loadJSON(LS_KEYS.ITEMS) || [];
-    const tr = loadJSON(LS_KEYS.TRANS) || [];
-    const sid = localStorage.getItem(LS_KEYS.SESSION_ID) || crypto.randomUUID();
-    setWordBank(wb);
-    setItems(prepareItems(it)); // נחלק לשתי קבוצות: עברית->אנגלית ואנגלית->אנגלית מעורב
-    setTranslations(alignTranslations(wb, tr));
-    setSessionId(sid);
-  },[]);
+    const p = new URLSearchParams(window.location.search);
+    const code = p.get('code');
+    if (code) {
+      const ts = Date.now(); // שובר קאש
+      fetch(`/api/get-set?code=${encodeURIComponent(code)}&t=${ts}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(obj => {
+          setWordBank(obj.word_bank_order || []);
+          setItems(prepareItems(obj.items || []));
+          setTranslations(obj.translations_he || []);
+          setSessionId(crypto.randomUUID());
+          localStorage.setItem('PARENT_CODE', code);
+        })
+        .catch(async err => {
+          const msg = typeof err.text === 'function' ? await err.text() : String(err);
+          alert('שגיאה בטעינת התרגיל מהשרת: ' + msg);
+          console.warn('load from server failed:', msg);
+        });
+    } else {
+      // נפילה ל-localStorage אם אין code
+      const wb = loadJSON(LS_KEYS.WORD_BANK) || [];
+      const it = loadJSON(LS_KEYS.ITEMS) || [];
+      const tr = loadJSON(LS_KEYS.TRANS) || [];
+      setWordBank(wb);
+      setItems(prepareItems(it));
+      setTranslations(tr);
+      setSessionId(localStorage.getItem(LS_KEYS.SESSION_ID) || crypto.randomUUID());
+    }
+  }, []);
+}
+
 
   function alignTranslations(wb, tr) {
     const out = Array.isArray(tr) ? [...tr] : [];

@@ -19,3 +19,24 @@
 ... 10 פריטים בדיוק ...
 ]
 }
+
+example:
+```{
+  "word_bank_order": ["walk", "run"],
+  "items": [
+    {
+      "id": "q1",
+      "hebrew_sentence": "הוא ____ לבית הספר",
+      "english_sentence": "He ____ to school",
+      "correct_option_index": 0
+    },
+    {
+      "id": "q2",
+      "hebrew_sentence": "היא ____ מהר מאוד",
+      "english_sentence": "She ____ very fast",
+      "correct_option_index": 1
+    }
+  ],
+  "translations_he": ["ללכת", "לרוץ"]
+}
+```

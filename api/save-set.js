@@ -15,6 +15,7 @@ async function readJson(req) {
 }
 
 export default async function handler(req, res) {
+res.setHeader('Cache-Control', 'no-store');
   try {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
