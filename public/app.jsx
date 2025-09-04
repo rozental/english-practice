@@ -172,22 +172,47 @@ function ParentView(){
     setTranslations(next);
   }
 
-  function saveForChild(){
-    if (!preview) { alert("אין JSON תקין לטעינה"); return; }
-    const wb = preview.word_bank_order;
-    const items = preview.items;
-    saveJSON(LS_KEYS.WORD_BANK, wb);
-    saveJSON(LS_KEYS.ITEMS, items);
-    saveJSON(LS_KEYS.TRANS, alignTranslations(wb, translations));
-    localStorage.setItem(LS_KEYS.SESSION_ID, sessionId);
-    alert("נשמר! כעת הילדה יכולה להיכנס ל־?child=1 ולהתחיל תרגול.");
+// state
+const [parentCode, setParentCode] = React.useState(() => localStorage.getItem('PARENT_CODE') || 'tal-1234');
+
+// שמור למכשיר, וגם לשרת
+async function saveForChild(){
+  if (!preview) { alert("אין JSON תקין לטעינה"); return; }
+  const payload = {
+    parent_code: parentCode,
+    word_bank_order: preview.word_bank_order,
+    items: preview.items,
+    translations_he: translations
+  };
+  localStorage.setItem('PARENT_CODE', parentCode);
+
+  const r = await fetch('/api/save-set', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    alert('שמירה לשרת נכשלה: ' + t);
+    return;
   }
+  alert('נשמר לשרת! שלח לילדה את הקישור: ' + location.origin + location.pathname + `?child=1&code=${encodeURIComponent(parentCode)}`);
+}
 
   React.useEffect(()=>{ if (jsonText) tryParse(jsonText); }, [jsonText]);
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">מצב הורה – הדבק/העלה JSON, ועדכן תרגומים</h2>
+<div className="mb-2">
+  <label className="block text-sm mb-1">קוד הורה:</label>
+  <input
+    className="border rounded px-2 py-1 w-full"
+    value={parentCode}
+    onChange={e=>setParentCode(e.target.value)}
+    placeholder="tal-1234"
+  />
+</div>
 
       <div className="flex gap-2 items-center">
         <button onClick={loadSample} className="px-3 py-2 rounded-xl bg-gray-200">טען דוגמה</button>
