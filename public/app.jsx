@@ -1,5 +1,3 @@
-
-
 const exampleJson = `{
   "word_bank_order": ["apple", "banana", "cat", "dog"],
   "translations_he": ["תפוח", "בננה", "חתול", "כלב"],
@@ -313,5 +311,3 @@ function QuestionRow({ id, index, total, sentence, correctIndex, wordBank, answe
     </div>
   );
 }
-
-export default App;
