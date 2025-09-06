@@ -1,14 +1,14 @@
 // app.jsx — smoke test מינימלי
 
 function App(){
+  console.log("App נטען!");
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold">שלום! האפליקציה עלתה ✅</h1>
-      <p className="mt-2">אם אתה רואה את זה, React נטען ו־app.jsx רץ תקין.</p>
+      <h1 className="text-2xl font-bold">בדיקת App</h1>
+      <p>אם אתה רואה את זה – הפונקציה App רצה והחזירה JSX.</p>
     </div>
   );
 }
-
 //
 // // app.jsx — גרסה מלאה: הורה / ילדה / דוחות
 // // נטען ישירות דרך index.html עם React UMD + Babel (אין exports)
