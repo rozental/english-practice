@@ -127,6 +127,17 @@ function ChildOnly(){
     );
   }
 
+
+  // אנגלית → אנגלית בסדר מעורבב
+  const shuffledEn = React.useMemo(()=>{
+    const arr = [...items];
+    for (let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return arr;
+  },[items]);
+
   if (status !== "ready") {
     return (
       <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -147,16 +158,6 @@ function ChildOnly(){
       </div>
     );
   }
-
-  // אנגלית → אנגלית בסדר מעורבב
-  const shuffledEn = React.useMemo(()=>{
-    const arr = [...items];
-    for (let i=arr.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [arr[i],arr[j]] = [arr[j],arr[i]];
-    }
-    return arr;
-  },[items]);
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
