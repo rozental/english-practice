@@ -1,27 +1,75 @@
 <!doctype html>
-<html dir="rtl" lang="he">
+<html lang="he" dir="rtl">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- React + ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Tailwind -->
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>תרגול אנגלית – הורה/ילד</title>
+
+    <!-- Tailwind (סטיילים) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Babel Standalone -->
+
+    <!-- React 18 (UMD) + ReactDOM 18 (UMD) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Babel (לקומפילציה של JSX בדפדפן) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <title>תרגול אנגלית – הורה/ילדה</title>
+
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+      #bootlog { white-space: pre-wrap; direction: ltr; font-size: 12px; color: #555; }
+      .errbox { background:#fee; border:1px solid #f99; padding:8px; border-radius:10px; margin:8px 0; }
+    </style>
   </head>
-  <body class="bg-gray-50">
-    <div id="root"></div>
+  <body class="bg-gray-50 text-gray-800">
+    <div id="root" class="min-h-screen"></div>
+    <div id="bootlog" class="p-3"></div>
 
-    <!-- טוען את האפליקציה (JSX) מה-public -->
-    <script type="text/babel" data-presets="react" src="./app.jsx"></script>
+    <!-- לכידת שגיאות גלובלית: תראה הודעה במקום מסך לבן -->
+    <script>
+      const log = (...a) => { console.log(...a); try {
+        const el = document.getElementById('bootlog');
+        el.textContent += a.map(x=> (typeof x==='string'?x:JSON.stringify(x))).join(' ') + "\n";
+      } catch(_){} };
 
-    <!-- רנדר לאלמנט #root -->
-    <script type="text/babel" data-presets="react">
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<App />);
+      window.addEventListener('error', e => {
+        const box = document.createElement('div');
+        box.className = 'errbox';
+        box.textContent = 'JS error: ' + e.message;
+        document.body.prepend(box);
+        console.error(e);
+      });
+      window.addEventListener('unhandledrejection', e => {
+        const box = document.createElement('div');
+        box.className = 'errbox';
+        box.textContent = 'Promise rejection: ' + (e.reason?.message || e.reason);
+        document.body.prepend(box);
+        console.error(e);
+      });
+
+      log('Booting…');
+    </script>
+
+    <!-- טען את האפליקציה שלך (JSX). חשוב: data-presets="react" ושובר קאש ?v=timestamp -->
+    <script
+      type="text/babel"
+      data-presets="react"
+      src="./app.jsx?v=<%= Date.now ? Date.now() : (new Date()).getTime() %>">
+    </script>
+
+    <!-- Mount: אם App לא קיים → הודעה ברורה -->
+    <script type="text/babel">
+      log('Mounting…');
+      if (typeof App !== 'function') {
+        const box = document.createElement('div');
+        box.className = 'errbox';
+        box.textContent = 'App לא נמצא. ודא שבקובץ public/app.jsx מוגדר function App() גלובלי (ללא export).';
+        document.getElementById('root').appendChild(box);
+      } else {
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+        log('Mounted.');
+      }
     </script>
   </body>
 </html>
