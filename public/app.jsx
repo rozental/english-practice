@@ -132,6 +132,18 @@ function ChildOnly(){
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-xl font-bold">תרגול אנגלית – מצב ילד</h1>
         <StatusBox/>
+        {status === "empty" && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 rounded p-4 mt-4">
+            לא נמצאו שאלות או מילים עבור קוד זה.<br/>
+            ודאו שהקוד נכון ושהוזנו שאלות ומילים ב-Supabase.
+          </div>
+        )}
+        {status === "error" && (
+          <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4 mt-4">
+            שגיאה בטעינת התרגול.<br/>
+            {msg}
+          </div>
+        )}
       </div>
     );
   }
