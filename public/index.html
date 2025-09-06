@@ -3,61 +3,35 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>תרגול אנגלית – הורה/ילד</title>
-
-    <!-- Tailwind (אופציונלי לעיצוב) -->
+    <title>תרגול אנגלית – הורה/ילדה</title>
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- React & ReactDOM - גרסאות development לקריאת שגיאות ברורות -->
+    <!-- React Dev UMD (בשביל שגיאות ברורות) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-
-    <!-- Babel לקומפילציית JSX בדפדפן -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-      .errbox { background:#fee; border:1px solid #f99; padding:10px; border-radius:10px; margin:10px; }
-    </style>
+    <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}</style>
   </head>
   <body class="bg-gray-50 text-gray-800">
     <div id="root" class="min-h-screen"></div>
-    <div id="errors"></div>
 
-    <!-- טעינת האפליקציה שלך (JSX) -->
-    <!-- חשוב: type="text/babel" + data-presets="react" -->
-    <script
-      type="text/babel"
-      data-presets="react"
-      src="./app.jsx?v=dev">
-    </script>
-
-    <!-- Mount בלי JSX (רגיל) כדי לוודא שסדר הטעינה נכון -->
     <script>
-      function showErr(msg){
-        const box = document.createElement('div');
-        box.className = 'errbox';
-        box.textContent = msg;
-        document.getElementById('errors').appendChild(box);
-        console.error(msg);
+      // אפליקציה מינימלית ללא JSX (בלי Babel)
+      function App(){
+        return React.createElement(
+          "div",
+          { className: "p-6" },
+          React.createElement("h1", { className: "text-2xl font-bold" }, "בדיקת App (ללא JSX) ✅"),
+          React.createElement("p", null, "אם אתה רואה את זה, React נטען ומרנדר תקין.")
+        );
       }
 
-      window.addEventListener('DOMContentLoaded', function(){
-        const rootEl = document.getElementById('root');
-        if (!rootEl) return showErr('No #root element found');
-        if (typeof React === 'undefined' || typeof ReactDOM === 'undefined') {
-          return showErr('React/ReactDOM not loaded');
-        }
-        if (typeof App !== 'function') {
-          return showErr('App לא הוגדר. ודא שב־public/app.jsx יש function App() ללא export.');
-        }
-        try {
-          const root = ReactDOM.createRoot(rootEl);
-          root.render(React.createElement(App));
-        } catch (e) {
-          showErr('Render error: ' + (e && e.message ? e.message : e));
-        }
-      });
+      // Mount
+      (function(){
+        const rootEl = document.getElementById("root");
+        if (!rootEl) { alert("No #root element"); return; }
+        if (typeof React === "undefined" || typeof ReactDOM === "undefined") { alert("React לא נטען"); return; }
+        const root = ReactDOM.createRoot(rootEl);
+        root.render(React.createElement(App));
+      })();
     </script>
   </body>
 </html>
