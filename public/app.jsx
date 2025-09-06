@@ -150,62 +150,6 @@ function ParentView(){
   );
 }
 
-/* -------------------------
-   ChildView – תרגול
-------------------------- */
-function ChildView(){
-  const [name,setName] = React.useState("");
-  const [items,setItems] = React.useState([]);
-  const [wordBank,setWordBank] = React.useState([]);
-  const [translations,setTranslations] = React.useState([]);
-  const [cursor,setCursor] = React.useState(0);
-  const [correct,setCorrect] = React.useState(0);
-  const [wrong,setWrong] = React.useState(0);
-  const [finished,setFinished] = React.useState(false);
-
-  React.useEffect(()=>{
-    const p = new URLSearchParams(window.location.search);
-    const code = p.get('code');
-    if (code) {
-      const ts = Date.now();
-      fetch(`/api/get-set?code=${encodeURIComponent(code)}&t=${ts}`)
-        .then(r=>r.ok?r.json():Promise.reject(r))
-        .then(obj=>{
-          setWordBank(obj.word_bank_order||[]);
-          setItems(obj.items||[]);
-          setTranslations(obj.translations_he||[]);
-        })
-        .catch(e=>console.error("load error",e));
-    }
-  },[]);
-
-  function pick(idx){
-    const q = items[cursor];
-    if (!q) return;
-    if (idx===q.correct_option_index) setCorrect(c=>c+1);
-    else setWrong(w=>w+1);
-    if (cursor+1<items.length) setCursor(c=>c+1);
-    else setFinished(true);
-  }
-
-  if (!items?.length) return <div className="text-center p-6">אין תרגיל טעון</div>;
-  if (finished) return <div className="text-center p-6">סיימת! נכונות {correct}, שגיאות {wrong}</div>;
-
-  const q = items[cursor];
-  return (
-    <div className="p-4 space-y-4">
-      <div>מילות מחסן: {wordBank.map((w,i)=> <span key={i}>{w} ({translations[i]||"?"}) · </span>)}</div>
-      <h3 className="font-semibold">שאלה {cursor+1}/{items.length}</h3>
-      <div className="text-lg mb-4">{q.hebrew_sentence || q.english_sentence}</div>
-      <div className="grid grid-cols-2 gap-2">
-        {wordBank.map((w,i)=>(
-          <button key={i} onClick={()=>pick(i)} className="px-3 py-2 border rounded-xl">{w}</button>
-        ))}
-      </div>
-      <div>נכון: {correct} · שגוי: {wrong}</div>
-    </div>
-  );
-}
 
 /* -------------------------
    QuestionCard (לא חובה כאן כי הצגתי inline)
@@ -219,3 +163,200 @@ function AdminView(){
   return <div className="p-6">דוחות יגיעו בהמשך…</div>;
 }
 
+
+
+
+/* -------------------------
+   ChildView – כל השאלות בעמוד, עם סימון צבעוני קבוע
+------------------------- */
+function ChildView(){
+  const [name,setName] = React.useState("");
+  const [items,setItems] = React.useState([]);
+  const [wordBank,setWordBank] = React.useState([]);
+  const [translations,setTranslations] = React.useState([]);
+  const [stats,setStats] = React.useState({correct:0, wrong:0});
+  const [answers,setAnswers] = React.useState({});
+  // answers key: "he:<id>" או "en:<id>"
+  // { correct: boolean, wrongs: number[] }
+
+  // טוען סט מהשרת לפי code בפרמטרים
+  React.useEffect(()=>{
+    const p = new URLSearchParams(window.location.search);
+    const code = p.get('code');
+    if (code) {
+      const ts = Date.now();
+      fetch(`/api/get-set?code=${encodeURIComponent(code)}&t=${ts}`)
+        .then(r=>r.ok?r.json():Promise.reject(r))
+        .then(obj=>{
+          setWordBank(obj.word_bank_order||[]);
+          setItems(Array.isArray(obj.items)? obj.items : []);
+          setTranslations(obj.translations_he||[]);
+        })
+        .catch(e=>console.error("load error",e));
+    }
+  },[]);
+
+  // אירוע לחיצה על תשובה
+  function onPick({ mode, item, optionIdx }) {
+    const key = `${mode}:${item.id}`;
+    const isRight = optionIdx === (item.correct_option_index ?? 0);
+
+    setAnswers(prev=>{
+      const prevRow = prev[key] || { correct:false, wrongs:[] };
+      // אם כבר נענה נכון – לא מאפשרים לשנות
+      if (prevRow.correct) return prev;
+
+      const next = { ...prevRow };
+      if (isRight) {
+        next.correct = true;
+      } else {
+        if (!next.wrongs.includes(optionIdx)) next.wrongs = [...next.wrongs, optionIdx];
+      }
+      return { ...prev, [key]: next };
+    });
+
+    // עדכון ספירה
+    setStats(s=>{
+      const next = { ...s };
+      if (isRight) next.correct += 1; else next.wrong += 1;
+      // שליחת לוג (רשות): אם יש לך /api/log-result מחובר
+      sendLog({correct: next.correct, wrong: next.wrong});
+      return next;
+    });
+  }
+
+  // שליחת לוג (רשות – יעבוד אם חיברת את פונקציית השרת)
+  const [sessionId] = React.useState(()=>crypto.randomUUID());
+  async function sendLog(totals){
+    try{
+      const p = new URLSearchParams(window.location.search);
+      const code = p.get('code') || localStorage.getItem('PARENT_CODE');
+      if (!code) return;
+      await fetch('/api/log-result', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          parent_code: code,
+          session_id: sessionId,
+          student_name: name || null,
+          correct: totals.correct,
+          wrong: totals.wrong
+        })
+      });
+    }catch(_){}
+  }
+
+  if (!items?.length) {
+    return <div className="text-center p-6 text-gray-500">אין תרגיל טעון</div>;
+  }
+
+  // מערך מעורבב עבור האנגלית
+  const shuffledEn = React.useMemo(()=>{
+    const arr = [...items];
+    for (let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return arr;
+  },[items]);
+
+  return (
+    <div className="space-y-6">
+      {/* כותרת + מחסן מילים עם תרגום */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm">
+        <h2 className="text-lg font-semibold mb-2">מחסן מילים</h2>
+        <div className="flex flex-wrap gap-2">
+          {wordBank.map((w,i)=>(
+            <span key={i} className="px-2 py-1 rounded-xl bg-gray-100 text-sm">
+              {w}{translations[i] ? ` — ${translations[i]}` : ""}
+            </span>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+          <input
+            className="border rounded-xl px-3 py-2 w-full sm:w-64"
+            placeholder="שם (לא חובה)"
+            value={name}
+            onChange={e=>setName(e.target.value)}
+          />
+          <div className="text-sm text-gray-600">נכונות: {stats.correct} · שגיאות: {stats.wrong}</div>
+        </div>
+      </div>
+
+      {/* עברית → אנגלית — כל השאלות */}
+      <section className="space-y-3">
+        <h3 className="font-semibold">בחר/י את המילה באנגלית שמשלימה את המשפט בעברית</h3>
+        {items.map((it,idx)=>(
+          <QuestionRow
+            key={`he-${it.id}`}
+            mode="he"
+            index={idx+1}
+            total={items.length}
+            sentence={it.hebrew_sentence}
+            item={it}
+            wordBank={wordBank}
+            answers={answers}
+            onPick={onPick}
+          />
+        ))}
+      </section>
+
+      {/* אנגלית → אנגלית — כל השאלות (בסדר מעורבב) */}
+      <section className="space-y-3">
+        <h3 className="font-semibold">בחר/י את המילה באנגלית למשפט באנגלית (סדר שאלות מעורבב)</h3>
+        {shuffledEn.map((it,idx)=>(
+          <QuestionRow
+            key={`en-${it.id}`}
+            mode="en"
+            index={idx+1}
+            total={shuffledEn.length}
+            sentence={it.english_sentence}
+            item={it}
+            wordBank={wordBank}
+            answers={answers}
+            onPick={onPick}
+          />
+        ))}
+      </section>
+    </div>
+  );
+}
+
+/* -------------------------
+   QuestionRow – כרטיס שאלה יחיד
+   • מסמן תשובה נכונה בירוק בהיר
+   • תשובות שגויות מסומנות באדום בהיר ונשמרות
+   • אם נענתה נכון – מבטל לחיצות נוספות
+------------------------- */
+function QuestionRow({ mode, index, total, sentence, item, wordBank, answers, onPick }){
+  const key = `${mode}:${item.id}`;
+  const row = answers[key] || { correct:false, wrongs:[] };
+  const correctIdx = item.correct_option_index ?? 0;
+
+  return (
+    <div className="bg-white p-4 rounded-2xl shadow-sm">
+      <div className="text-sm text-gray-500 mb-1">[{index}/{total}]</div>
+      <div className="mb-3 text-lg">{sentence}</div>
+      <div className="grid grid-cols-2 gap-2">
+        {wordBank.map((w,idx)=>{
+          let extra = "border hover:shadow active:translate-y-[1px]";
+          if (row.correct && idx === correctIdx) {
+            extra += " bg-green-100 border-green-400";
+          } else if (row.wrongs?.includes(idx)) {
+            extra += " bg-red-100 border-red-300";
+          }
+          return (
+            <button
+              key={idx}
+              className={`px-3 py-3 rounded-xl ${extra}`}
+              onClick={()=> onPick({ mode, item, optionIdx: idx })}
+              disabled={row.correct} // אחרי תשובה נכונה – ננעל
+            >
+              {w}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
