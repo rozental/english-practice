@@ -5,33 +5,12 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>תרגול אנגלית – הורה/ילדה</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React Dev UMD (בשביל שגיאות ברורות) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}</style>
   </head>
   <body class="bg-gray-50 text-gray-800">
     <div id="root" class="min-h-screen"></div>
-
-    <script>
-      // אפליקציה מינימלית ללא JSX (בלי Babel)
-      function App(){
-        return React.createElement(
-          "div",
-          { className: "p-6" },
-          React.createElement("h1", { className: "text-2xl font-bold" }, "בדיקת App (ללא JSX) ✅"),
-          React.createElement("p", null, "אם אתה רואה את זה, React נטען ומרנדר תקין.")
-        );
-      }
-
-      // Mount
-      (function(){
-        const rootEl = document.getElementById("root");
-        if (!rootEl) { alert("No #root element"); return; }
-        if (typeof React === "undefined" || typeof ReactDOM === "undefined") { alert("React לא נטען"); return; }
-        const root = ReactDOM.createRoot(rootEl);
-        root.render(React.createElement(App));
-      })();
-    </script>
+    <!-- טוען קובץ JS רגיל (לא JSX) -->
+    <script src="./app.js?v=dev"></script>
   </body>
 </html>
