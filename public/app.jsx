@@ -2,7 +2,48 @@
 // מציגה את כל השאלות בעמוד אחד עם סימון ירוק/אדום קליקבילי.
 
 function App(){
+  return <Router/>;
+function App(){
   return <ChildOnly/>;
+}
+
+function Router() {
+  const p = new URLSearchParams(window.location.search);
+  const code = p.get("code");
+  if (!code) {
+    return <LandingPage/>;
+  }
+  return <ChildOnly/>;
+}
+
+function LandingPage() {
+  const [input, setInput] = React.useState("");
+  function goToCode(e) {
+    e.preventDefault();
+    if (input.trim()) {
+      window.location.search = `?code=${encodeURIComponent(input.trim())}`;
+    }
+  }
+  return (
+    <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
+      <h1 className="text-2xl font-bold mb-2">ברוכים הבאים לתרגול אנגלית</h1>
+      <p className="text-gray-700 mb-4">הכניסו קוד תרגול שקיבלתם מהמורה או מההורה כדי להתחיל.</p>
+      <form onSubmit={goToCode} className="flex gap-2">
+        <input
+          className="border rounded px-3 py-2 flex-1"
+          placeholder="הכניסו קוד תרגול (למשל: tal)"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+        />
+        <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit">התחל</button>
+      </form>
+      <div className="text-sm text-gray-500 mt-4">
+        אתר זה מאפשר להורים ולמורים ליצור סטים של שאלות באנגלית ולשלוח קישור לילדים לתרגול.<br/>
+        כדי להתחיל, צרו סט שאלות במערכת הניהול, או השתמשו בקוד קיים.
+      </div>
+    </div>
+  );
+}
 }
 
 function ChildOnly(){
