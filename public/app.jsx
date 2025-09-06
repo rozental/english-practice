@@ -2,50 +2,146 @@
 // מציגה את כל השאלות בעמוד אחד עם סימון ירוק/אדום קליקבילי.
 
 function App(){
-  return <Router/>;
-function App(){
-  return <ChildOnly/>;
+  return <MainRouter/>;
 }
 
-function Router() {
-  const p = new URLSearchParams(window.location.search);
-  const code = p.get("code");
-  if (!code) {
-    return <LandingPage/>;
+function MainRouter() {
+  const [route, setRoute] = React.useState(getRoute());
+  React.useEffect(() => {
+    window.onpopstate = () => setRoute(getRoute());
+  }, []);
+  function navigate(r) {
+    window.history.pushState({}, '', r);
+    setRoute(getRoute());
   }
-  return <ChildOnly/>;
+  if (route.page === "parent") return <ParentPage navigate={navigate}/>;
+  if (route.page === "reports") return <ReportsPage navigate={navigate}/>;
+  if (route.page === "child") return <Router/>;
+  return <LandingPage navigate={navigate}/>;
 }
 
-function LandingPage() {
-  const [input, setInput] = React.useState("");
-  function goToCode(e) {
-    e.preventDefault();
-    if (input.trim()) {
-      window.location.search = `?code=${encodeURIComponent(input.trim())}`;
-    }
-  }
+function getRoute() {
+  const path = window.location.pathname;
+  if (path.startsWith("/parent")) return { page: "parent" };
+  if (path.startsWith("/reports")) return { page: "reports" };
+  if (path.startsWith("/child") || window.location.search.includes('code=')) return { page: "child" };
+  return { page: "landing" };
+}
+function LandingPage({ navigate }) {
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
-      <h1 className="text-2xl font-bold mb-2">ברוכים הבאים לתרגול אנגלית</h1>
-      <p className="text-gray-700 mb-4">הכניסו קוד תרגול שקיבלתם מהמורה או מההורה כדי להתחיל.</p>
-      <form onSubmit={goToCode} className="flex gap-2">
-        <input
-          className="border rounded px-3 py-2 flex-1"
-          placeholder="הכניסו קוד תרגול (למשל: tal)"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-        />
-        <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit">התחל</button>
-      </form>
-      <div className="text-sm text-gray-500 mt-4">
+    <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10 text-center">
+      <h1 className="text-2xl font-bold mb-4">ברוכים הבאים לתרגול אנגלית</h1>
+      <div className="flex flex-col gap-4 items-center">
+        <button className="bg-blue-600 text-white px-6 py-3 rounded text-lg w-64" onClick={()=>navigate('/parent')}>הורה: יצירת סט שאלות</button>
+        <button className="bg-green-600 text-white px-6 py-3 rounded text-lg w-64" onClick={()=>navigate('/reports')}>דו"חות וסטטיסטיקות</button>
+        <button className="bg-purple-600 text-white px-6 py-3 rounded text-lg w-64" onClick={()=>navigate('/child')}>ילד: מעבר לתרגול</button>
+      </div>
+      <div className="text-sm text-gray-500 mt-8">
         אתר זה מאפשר להורים ולמורים ליצור סטים של שאלות באנגלית ולשלוח קישור לילדים לתרגול.<br/>
-        כדי להתחיל, צרו סט שאלות במערכת הניהול, או השתמשו בקוד קיים.
+        כדי להתחיל, בחרו באפשרות הרצויה.
       </div>
     </div>
   );
 }
-}
 
+function ParentPage({ navigate }) {
+  const [json, setJson] = React.useState('');
+  const [code, setCode] = React.useState('');
+  const [result, setResult] = React.useState(null);
+  const [error, setError] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setError('');
+    setResult(null);
+    let obj;
+    try {
+      obj = JSON.parse(json);
+    } catch (e) {
+      setError('JSON לא תקין: ' + e.message);
+      return;
+    }
+          className="border rounded px-3 py-2 w-full"
+          placeholder="קוד ייחודי (למשל: tal)"
+          value={code}
+          onChange={e => setCode(e.target.value)}
+        />
+        <textarea
+          className="border rounded px-3 py-2 w-full h-40 font-mono"
+          placeholder="הדביקו כאן JSON של שאלות..."
+          value={json}
+    return (
+      <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
+        <button className="text-blue-600 underline mb-4" onClick={()=>navigate('/')}>← חזרה לדף הבית</button>
+        <h2 className="text-xl font-bold mb-2">הורה: יצירת סט שאלות</h2>
+        <form onSubmit={handleSave} className="space-y-4">
+          <input
+            className="border rounded px-3 py-2 w-full"
+            placeholder="קוד ייחודי (למשל: tal)"
+            value={code}
+            onChange={e => setCode(e.target.value)}
+          />
+          <textarea
+            className="border rounded px-3 py-2 w-full h-40 font-mono"
+            placeholder="הדביקו כאן JSON של שאלות..."
+            value={json}
+            onChange={e => setJson(e.target.value)}
+          />
+          <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit" disabled={saving}>{saving ? 'שומר...' : 'שמור והפק קישור'}</button>
+        </form>
+        {error && <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4 mt-4">{error}</div>}
+        {result && (
+          <div className="bg-green-100 border border-green-400 text-green-800 rounded p-4 mt-4">
+            סט נשמר! שלחו קישור זה לילד:
+            <div className="mt-2 font-mono break-all">
+              <a className="underline" href={result} target="_blank" rel="noopener noreferrer">{result}</a>
+            </div>
+          </div>
+        )}
+        <div className="text-sm text-gray-500 mt-4">
+      <button className="text-blue-600 underline mb-4" onClick={()=>navigate('/')}>← חזרה לדף הבית</button>
+      <h2 className="text-xl font-bold mb-2">דו"חות וסטטיסטיקות</h2>
+      <div className="text-gray-500">(כאן תוצג סטטיסטיקה לפי קוד. יש לממש בהמשך.)</div>
+    </div>
+  );
+}
+      </div>
+    </div>
+  );
+          return (
+            <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
+              <button className="text-blue-600 underline mb-4" onClick={()=>navigate('/')}>← חזרה לדף הבית</button>
+              <h2 className="text-xl font-bold mb-2">הורה: יצירת סט שאלות</h2>
+              <form onSubmit={handleSave} className="space-y-4">
+                <input
+                  className="border rounded px-3 py-2 w-full"
+                  placeholder="קוד ייחודי (למשל: tal)"
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                />
+                <textarea
+                  className="border rounded px-3 py-2 w-full h-40 font-mono"
+                  placeholder="הדביקו כאן JSON של שאלות..."
+                  value={json}
+                  onChange={e => setJson(e.target.value)}
+                />
+                <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit" disabled={saving}>{saving ? 'שומר...' : 'שמור והפק קישור'}</button>
+              </form>
+              {error ? (
+                <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4 mt-4">{error}</div>
+              ) : null}
+              {result ? (
+                <div className="bg-green-100 border border-green-400 text-green-800 rounded p-4 mt-4">
+                  סט נשמר! שלחו קישור זה לילד:
+                  <div className="mt-2 font-mono break-all">
+                    <a className="underline" href={result} target="_blank" rel="noopener noreferrer">{result}</a>
+                  </div>
+                </div>
+              ) : null}
+              <div className="text-sm text-gray-500 mt-4">
+                פורמט JSON לדוגמה:
+                <pre className="bg-gray-100 p-2 rounded mt-2 text-xs text-left overflow-x-auto">{
 function ChildOnly(){
   const [status, setStatus] = React.useState("init"); // init | loading | ready | error | empty
   const [msg, setMsg] = React.useState("");
@@ -53,6 +149,9 @@ function ChildOnly(){
   const [translations, setTranslations] = React.useState([]);
   const [items, setItems] = React.useState([]);
   const [answers, setAnswers] = React.useState({}); // key id -> {correct:boolean, wrongs:number[]}
+              </div>
+            </div>
+          );
   const [stats, setStats] = React.useState({correct:0, wrong:0});
 
   // ...existing code...
@@ -135,20 +234,20 @@ function ChildOnly(){
       const j = Math.floor(Math.random()*(i+1));
       [arr[i],arr[j]] = [arr[j],arr[i]];
     }
-    return arr;
-  },[items]);
-
-  if (status !== "ready") {
     return (
-      <div className="max-w-3xl mx-auto p-4 space-y-4">
-        <h1 className="text-xl font-bold">תרגול אנגלית – מצב ילד</h1>
-        <StatusBox/>
-        {status === "empty" && (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 rounded p-4 mt-4">
-            לא נמצאו שאלות או מילים עבור קוד זה.<br/>
-            ודאו שהקוד נכון ושהוזנו שאלות ומילים ב-Supabase.
-          </div>
-        )}
+      <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10 text-center">
+        <h1 className="text-2xl font-bold mb-4">ברוכים הבאים לתרגול אנגלית</h1>
+        <div className="flex flex-col gap-4 items-center">
+          <button className="bg-blue-600 text-white px-6 py-3 rounded text-lg w-64" onClick={()=>navigate('/parent')}>הורה: יצירת סט שאלות</button>
+          <button className="bg-green-600 text-white px-6 py-3 rounded text-lg w-64" onClick={()=>navigate('/reports')}>דו"חות וסטטיסטיקות</button>
+          <button className="bg-purple-600 text-white px-6 py-3 rounded text-lg w-64" onClick={()=>navigate('/child')}>ילד: מעבר לתרגול</button>
+        </div>
+        <div className="text-sm text-gray-500 mt-8">
+          אתר זה מאפשר להורים ולמורים ליצור סטים של שאלות באנגלית ולשלוח קישור לילדים לתרגול.<br/>
+          כדי להתחיל, בחרו באפשרות הרצויה.
+        </div>
+      </div>
+    );
         {status === "error" && (
           <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4 mt-4">
             שגיאה בטעינת התרגול.<br/>
