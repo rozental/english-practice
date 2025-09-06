@@ -1,4 +1,4 @@
-import React from "react";
+
 
 const exampleJson = `{
   "word_bank_order": ["apple", "banana", "cat", "dog"],
