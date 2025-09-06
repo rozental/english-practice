@@ -254,7 +254,7 @@ function ChildPage() {
         {items.map((it, idx) => (
           <QuestionRow
             key={`he-${it.id}`}
-            id={it.id}
+            id={`he-${it.id}`}
             index={idx + 1}
             total={items.length}
             sentence={it.hebrew_sentence || it.english_sentence}
@@ -270,7 +270,7 @@ function ChildPage() {
         {shuffledEn.map((it, idx) => (
           <QuestionRow
             key={`en-${it.id}`}
-            id={it.id}
+            id={`en-${it.id}`}
             index={idx + 1}
             total={shuffledEn.length}
             sentence={it.english_sentence}
