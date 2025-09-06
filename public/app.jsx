@@ -14,8 +14,7 @@ function ChildOnly(){
   const [answers, setAnswers] = React.useState({}); // key id -> {correct:boolean, wrongs:number[]}
   const [stats, setStats] = React.useState({correct:0, wrong:0});
 
-  // For debugging: store the raw API response
-  const [debugObj, setDebugObj] = React.useState(null);
+  // ...existing code...
   React.useEffect(()=>{
     const p = new URLSearchParams(window.location.search);
     const code = p.get("code");
@@ -34,7 +33,7 @@ function ChildOnly(){
         try { obj = JSON.parse(text); }
         catch(e){ throw new Error("JSON parse failed: " + e.message); }
 
-        setDebugObj(obj); // <--- Add this line
+  // ...existing code...
 
         const wb = Array.isArray(obj.word_bank_order) ? obj.word_bank_order : [];
         const it = Array.isArray(obj.items) ? obj.items : [];
@@ -92,12 +91,6 @@ function ChildOnly(){
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-xl font-bold">תרגול אנגלית – מצב ילד</h1>
         <StatusBox/>
-        {/* Debug output: show the raw API response */}
-        {debugObj && (
-          <pre className="bg-gray-100 text-xs p-2 mt-4 rounded border overflow-x-auto">
-            {JSON.stringify(debugObj, null, 2)}
-          </pre>
-        )}
       </div>
     );
   }
