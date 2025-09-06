@@ -197,14 +197,14 @@ function ChildOnly(){
         {shuffledEn.map((it,idx)=>(
           <QuestionRow
             key={`en-${it.id}`}
-            id={it.id + "-en"} /* מפתח נפרד למדור האנגלי */
+            id={it.id} // Use the original id for answer state and UI
             index={idx+1}
             total={shuffledEn.length}
             sentence={it.english_sentence}
             correctIndex={it.correct_option_index ?? 0}
             wordBank={wordBank}
             answers={answers}
-            onPick={(id2,opt)=>onPick(it.id, opt)}
+            onPick={onPick}
           />
         ))}
       </section>
