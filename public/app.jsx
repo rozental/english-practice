@@ -52,25 +52,44 @@ function ParentPage({ navigate }) {
   const [saving, setSaving] = React.useState(false);
 
   async function handleSave(e) {
-    e.preventDefault();
-    setError('');
-    setResult(null);
-    let obj;
-    try {
-      obj = JSON.parse(json);
-    } catch (e) {
-      setError('JSON לא תקין: ' + e.message);
-      return;
+    const [json, setJson] = React.useState('');
+    const [code, setCode] = React.useState('');
+    const [result, setResult] = React.useState(null);
+    const [error, setError] = React.useState('');
+    const [saving, setSaving] = React.useState(false);
+
+    async function handleSave(e) {
+      e.preventDefault();
+      setError('');
+      setResult(null);
+      let obj;
+      try {
+        obj = JSON.parse(json);
+      } catch (e) {
+        setError('JSON לא תקין: ' + e.message);
+        return;
+      }
+      if (!code.trim()) {
+        setError('יש להזין קוד (למשל: tal)');
+        return;
+      }
+      setSaving(true);
+      try {
+        const resp = await fetch('/api/save-set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parent_code: code.trim(), ...obj })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'שגיאה בשמירה');
+        setResult(`https://english-practice-drab.vercel.app/?code=${encodeURIComponent(code.trim())}`);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setSaving(false);
+      }
     }
-          className="border rounded px-3 py-2 w-full"
-          placeholder="קוד ייחודי (למשל: tal)"
-          value={code}
-          onChange={e => setCode(e.target.value)}
-        />
-        <textarea
-          className="border rounded px-3 py-2 w-full h-40 font-mono"
-          placeholder="הדביקו כאן JSON של שאלות..."
-          value={json}
+
     return (
       <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
         <button className="text-blue-600 underline mb-4" onClick={()=>navigate('/')}>← חזרה לדף הבית</button>
@@ -100,54 +119,8 @@ function ParentPage({ navigate }) {
           </div>
         )}
         <div className="text-sm text-gray-500 mt-4">
-      <button className="text-blue-600 underline mb-4" onClick={()=>navigate('/')}>← חזרה לדף הבית</button>
-      <h2 className="text-xl font-bold mb-2">דו"חות וסטטיסטיקות</h2>
-      <div className="text-gray-500">(כאן תוצג סטטיסטיקה לפי קוד. יש לממש בהמשך.)</div>
-    </div>
-  );
-}
-      </div>
-    </div>
-  );
-          return (
-            <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
-              <button className="text-blue-600 underline mb-4" onClick={()=>navigate('/')}>← חזרה לדף הבית</button>
-              <h2 className="text-xl font-bold mb-2">הורה: יצירת סט שאלות</h2>
-              <form onSubmit={handleSave} className="space-y-4">
-                <input
-                  className="border rounded px-3 py-2 w-full"
-                  placeholder="קוד ייחודי (למשל: tal)"
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
-                />
-                <textarea
-                  className="border rounded px-3 py-2 w-full h-40 font-mono"
-                  placeholder="הדביקו כאן JSON של שאלות..."
-                  value={json}
-                  onChange={e => setJson(e.target.value)}
-                />
-                <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit" disabled={saving}>{saving ? 'שומר...' : 'שמור והפק קישור'}</button>
-              </form>
-              {error ? (
-                <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4 mt-4">{error}</div>
-              ) : null}
-              {result ? (
-                <div className="bg-green-100 border border-green-400 text-green-800 rounded p-4 mt-4">
-                  סט נשמר! שלחו קישור זה לילד:
-                  <div className="mt-2 font-mono break-all">
-                    <a className="underline" href={result} target="_blank" rel="noopener noreferrer">{result}</a>
-                  </div>
-                </div>
-              ) : null}
-              <div className="text-sm text-gray-500 mt-4">
-                פורמט JSON לדוגמה:
-                <pre className="bg-gray-100 p-2 rounded mt-2 text-xs text-left overflow-x-auto">{
-function ChildOnly(){
-  const [status, setStatus] = React.useState("init"); // init | loading | ready | error | empty
-  const [msg, setMsg] = React.useState("");
-  const [wordBank, setWordBank] = React.useState([]);
-  const [translations, setTranslations] = React.useState([]);
-  const [items, setItems] = React.useState([]);
+          פורמט JSON לדוגמה:
+          <pre className="bg-gray-100 p-2 rounded mt-2 text-xs text-left overflow-x-auto">{`
   const [answers, setAnswers] = React.useState({}); // key id -> {correct:boolean, wrongs:number[]}
               </div>
             </div>
@@ -157,6 +130,9 @@ function ChildOnly(){
   // ...existing code...
   React.useEffect(()=>{
     const p = new URLSearchParams(window.location.search);
+        </div>
+      </div>
+    );
     const code = p.get("code");
     if (!code) {
       setStatus("error");
