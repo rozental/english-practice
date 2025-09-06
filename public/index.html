@@ -23,13 +23,13 @@
     <div id="root" class="min-h-screen"></div>
 
     <!-- טעינת קובץ ה־JSX -->
-    <script type="text/babel" data-presets="react" src="app.jsx?v=dev"></script>
+    <script type="text/babel" data-presets="react" src="./app.jsx?v=dev"></script>
 
     <!-- הרצת האפליקציה -->
     <script type="text/babel">
       const rootEl = document.getElementById('root');
       if (typeof App !== 'function') {
-        document.body.innerHTML += '<div style="color:red;padding:1em">⚠️ פונקציית App לא נמצאה בקובץ app.jsx</div>';
+        document.body.innerHTML += '<div style="color:red;padding:1em">⚠️ פונקציית App לא נמצאה בקובץ ./app.jsx</div>';
       } else {
         const root = ReactDOM.createRoot(rootEl);
         root.render(<App />);
