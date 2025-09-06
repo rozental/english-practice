@@ -14,3 +14,12 @@
     <script src="./app.js?v=dev"></script>
   </body>
 </html>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel" data-presets="react" src="./app.jsx?v=dev"></script>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    if (typeof App !== 'function') { alert('App לא הוגדר'); return; }
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  });
+</script>
