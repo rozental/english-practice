@@ -191,7 +191,8 @@ function ChildPage() {
   }, []);
 
   function onPick(id, optionIdx) {
-    const item = items.find(x => x.id === id);
+    const cleanId = id.replace(/^he-|^en-/, "");
+    const item = items.find(x => x.id === cleanId);
     if (!item) return;
     const isRight = optionIdx === (item.correct_option_index ?? 0);
     setAnswers(prev => {
