@@ -190,6 +190,67 @@ function ReportsPage() {
   );
 }
 
+function AllReportsPage() {
+  const [sessions, setSessions] = React.useState([]);
+  const [msg, setMsg] = React.useState("טוען דוחות...");
+
+  React.useEffect(() => {
+    fetch(`/api/log-result?all=1`)
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data)) throw new Error("Bad data");
+        setSessions(data);
+        setMsg("");
+      })
+      .catch(e => {
+        setMsg("שגיאה בטעינת דוחות: " + (e?.message || e));
+      });
+  }, []);
+
+  // Group by parent_code
+  const grouped = {};
+  sessions.forEach(s => {
+    if (!grouped[s.parent_code]) grouped[s.parent_code] = [];
+    grouped[s.parent_code].push(s);
+  });
+
+  return (
+    <div>
+      <h2>כל הדוחות (כל הקודים)</h2>
+      {msg && <div>{msg}</div>}
+      {Object.keys(grouped).length > 0 && (
+        Object.entries(grouped).map(([code, sess]) => (
+          <div key={code} style={{marginBottom:24}}>
+            <h3>קוד: {code}</h3>
+            <table border="1" cellPadding="6">
+              <thead>
+                <tr>
+                  <th>התחלה</th>
+                  <th>משך (שניות)</th>
+                  <th>נכונים</th>
+                  <th>טעויות</th>
+                  <th>מילים בתרגול</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sess.map((s, i) => (
+                  <tr key={s.session_id || i}>
+                    <td>{s.start_time ? new Date(s.start_time).toLocaleString() : "-"}</td>
+                    <td>{s.start_time && s.end_time ? Math.round((s.end_time - s.start_time)/1000) : "-"}</td>
+                    <td>{s.correct ?? 0}</td>
+                    <td>{s.wrong ?? 0}</td>
+                    <td>{Array.isArray(s.words) ? s.words.join(", ") : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 function ChildPage() {
   const [status, setStatus] = React.useState("loading");
   const [msg, setMsg] = React.useState("טוען...");
