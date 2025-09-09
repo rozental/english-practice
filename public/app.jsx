@@ -129,12 +129,63 @@ function ParentPage({ navigate }) {
   );
 }
 
-function ReportsPage({ navigate }) {
+function ReportsPage() {
+  const [sessions, setSessions] = React.useState([]);
+  const [msg, setMsg] = React.useState("טוען דוחות...");
+  const [words, setWords] = React.useState([]);
+
+  React.useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const code = p.get("code");
+    if (!code) {
+      setMsg("Missing ?code= in URL. Example: ?code=tal");
+      return;
+    }
+    // Fetch latest 5 sessions
+    fetch(`/api/log-result?code=${encodeURIComponent(code)}&limit=5`)
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data)) throw new Error("Bad data");
+        setSessions(data);
+        setMsg("");
+        // Try to get practiced words from the latest session
+        if (data[0]?.words) setWords(data[0].words);
+        else setWords([]);
+      })
+      .catch(e => {
+        setMsg("שגיאה בטעינת דוחות: " + (e?.message || e));
+      });
+  }, []);
+
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
+    <div>
       <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
       <h2 className="text-xl font-bold mb-2">דו"חות וסטטיסטיקות</h2>
-      <div className="text-gray-500">בקרוב...</div>
+      {msg && <div>{msg}</div>}
+      {sessions.length > 0 && (
+        <table border="1" cellPadding="6" style={{marginTop:8}}>
+          <thead>
+            <tr>
+              <th>התחלה</th>
+              <th>משך (שניות)</th>
+              <th>נכונים</th>
+              <th>טעויות</th>
+              <th>מילים בתרגול</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map((s, i) => (
+              <tr key={s.session_id || i}>
+                <td>{s.start_time ? new Date(s.start_time).toLocaleString() : "-"}</td>
+                <td>{s.start_time && s.end_time ? Math.round((s.end_time - s.start_time)/1000) : "-"}</td>
+                <td>{s.correct ?? 0}</td>
+                <td>{s.wrong ?? 0}</td>
+                <td>{Array.isArray(s.words) ? s.words.join(", ") : "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
