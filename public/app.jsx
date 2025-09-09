@@ -147,6 +147,18 @@ function ChildPage() {
   const [translations, setTranslations] = React.useState([]);
   const [answers, setAnswers] = React.useState({});
   const [stats, setStats] = React.useState({ correct: 0, wrong: 0 });
+  // Session tracking
+  const sessionIdRef = React.useRef(null);
+  const sessionStartRef = React.useRef(null);
+  const parentCodeRef = React.useRef(null);
+
+  // Generate session id
+  function genSessionId() {
+    return (
+      Date.now().toString(36) +
+      Math.random().toString(36).slice(2, 10)
+    );
+  }
 
   React.useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -156,6 +168,21 @@ function ChildPage() {
       setMsg("Missing ?code= in URL. Example: ?code=tal");
       return;
     }
+    parentCodeRef.current = code;
+    sessionIdRef.current = genSessionId();
+    sessionStartRef.current = Date.now();
+    // Log session start
+    fetch("/api/log-result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        parent_code: code,
+        session_id: sessionIdRef.current,
+        start_time: sessionStartRef.current,
+        correct: 0,
+        wrong: 0
+      })
+    });
     setStatus("loading");
     setMsg("טוען מהשרת...");
     const ts = Date.now();
@@ -190,6 +217,20 @@ function ChildPage() {
       });
   }, []);
 
+  function logProgress(newCorrect, newWrong) {
+    fetch("/api/log-result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        parent_code: parentCodeRef.current,
+        session_id: sessionIdRef.current,
+        correct: newCorrect,
+        wrong: newWrong,
+        start_time: sessionStartRef.current
+      })
+    });
+  }
+
   function onPick(id, optionIdx) {
     const cleanId = id.replace(/^he-|^en-/, "");
     const item = items.find(x => x.id === cleanId);
@@ -207,6 +248,8 @@ function ChildPage() {
       const n = { ...s };
       if (isRight) n.correct++;
       else n.wrong++;
+      // Log progress after updating stats
+      setTimeout(() => logProgress(n.correct, n.wrong), 0);
       return n;
     });
   }
