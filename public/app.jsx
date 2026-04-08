@@ -365,31 +365,45 @@ function ChildPage() {
     const item = items.find(x => x.id === cleanId);
     if (!item) return;
     const isRight = optionIdx === (item.correct_option_index ?? 0);
+    console.log("onPick called:", { id, optionIdx, blindMode, isRight });
     setAnswers(prev => {
       const row = prev[id] || { correct: false, wrongs: [], selected: null };
+      console.log("Current row before update:", row);
       if (blindMode) {
         // In blind mode, always allow updates
         const next = { ...row };
         next.selected = optionIdx;
         if (isRight) next.correct = true;
+        console.log("Blind mode update:", next);
         return { ...prev, [id]: next };
       } else {
         // Normal mode: only update if not already correct
-        if (row.correct) return prev;
+        if (row.correct) {
+          console.log("Normal mode: already correct, blocking update");
+          return prev;
+        }
         const next = { ...row };
         if (isRight) next.correct = true;
         else if (!next.wrongs.includes(optionIdx)) next.wrongs = [...next.wrongs, optionIdx];
+        console.log("Normal mode update:", next);
         return { ...prev, [id]: next };
       }
     });
-    setStats(s => {
-      const n = { ...s };
-      if (isRight) n.correct++;
-      else n.wrong++;
-      // Log progress after updating stats
-      setTimeout(() => logProgress(n.correct, n.wrong), 0);
-      return n;
-    });
+    if (isRight) {
+      setStats(s => {
+        const n = { ...s };
+        n.correct++;
+        setTimeout(() => logProgress(n.correct, n.wrong), 0);
+        return n;
+      });
+    } else {
+      setStats(s => {
+        const n = { ...s };
+        n.wrong++;
+        setTimeout(() => logProgress(n.correct, n.wrong), 0);
+        return n;
+      });
+    }
   }, [blindMode, items]);
 
   const shuffledEn = React.useMemo(() => {
