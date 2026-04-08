@@ -411,7 +411,8 @@ function ChildPage() {
       items,
       answers,
       stats,
-      blindMode
+      blindMode,
+      allowedViewer: "parent-portal-only"
     };
     const encoded = btoa(JSON.stringify(data));
     return `${window.location.origin}/?view=child-progress&data=${encoded}`;
@@ -548,6 +549,13 @@ function ViewChildReportPage({ navigate }) {
       }
 
       const decoded = JSON.parse(atob(encoded));
+      
+      // Verify the link is from parent portal
+      if (decoded.allowedViewer !== "parent-portal-only") {
+        setError("קישור זה אינו תקין. אנא קבלו קישור חדש מהילד");
+        return;
+      }
+      
       setData(decoded);
     } catch (e) {
       setError("שגיאה בפענוח הנתון: " + e.message);
@@ -689,6 +697,11 @@ function ChildProgressPage({ navigate }) {
     }
     try {
       const decoded = JSON.parse(atob(encoded));
+      // Check if this link is only for parent portal
+      if (decoded.allowedViewer === "parent-portal-only") {
+        setError("לא ניתן להציג דוח זה ישירות. אנא גשו לדף הבית ובחרו 'הורה: צפיה בדוחות ילדים'");
+        return;
+      }
       setData(decoded);
     } catch (e) {
       setError("Failed to decode data: " + e.message);
