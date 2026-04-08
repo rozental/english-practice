@@ -490,7 +490,7 @@ function QuestionRow({ id, index, total, sentence, correctIndex, wordBank, answe
               key={idx}
               className={`px-3 py-3 rounded-xl ${extra}`}
               onClick={() => onPick(id, idx)}
-              disabled={row.correct}
+              disabled={!blindMode && row.correct}
             >
               {w}
             </button>
