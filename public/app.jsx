@@ -26,15 +26,18 @@ function MainRouter() {
   }
   if (route.page === "parent") return <ParentPage navigate={navigate} />;
   if (route.page === "reports") return <AllReportsPage navigate={navigate} />;
+  if (route.page === "child-progress") return <ChildProgressPage navigate={navigate} />;
   if (route.page === "child") return <ChildPage />;
   return <LandingPage navigate={navigate} />;
 }
 
 function getRoute() {
   const path = window.location.pathname;
+  const search = window.location.search;
   if (path.startsWith("/parent")) return { page: "parent" };
   if (path.startsWith("/reports")) return { page: "reports" };
-  if (path.startsWith("/child") || window.location.search.includes('code=')) return { page: "child" };
+  if (search.includes('view=child-progress')) return { page: "child-progress" };
+  if (path.startsWith("/child") || search.includes('code=')) return { page: "child" };
   return { page: "landing" };
 }
 
@@ -365,27 +368,20 @@ function ChildPage() {
     const item = items.find(x => x.id === cleanId);
     if (!item) return;
     const isRight = optionIdx === (item.correct_option_index ?? 0);
-    console.log("onPick called:", { id, optionIdx, blindMode, isRight });
     setAnswers(prev => {
       const row = prev[id] || { correct: false, wrongs: [], selected: null };
-      console.log("Current row before update:", row);
       if (blindMode) {
         // In blind mode, always allow updates
         const next = { ...row };
         next.selected = optionIdx;
         if (isRight) next.correct = true;
-        console.log("Blind mode update:", next);
         return { ...prev, [id]: next };
       } else {
         // Normal mode: only update if not already correct
-        if (row.correct) {
-          console.log("Normal mode: already correct, blocking update");
-          return prev;
-        }
+        if (row.correct) return prev;
         const next = { ...row };
         if (isRight) next.correct = true;
         else if (!next.wrongs.includes(optionIdx)) next.wrongs = [...next.wrongs, optionIdx];
-        console.log("Normal mode update:", next);
         return { ...prev, [id]: next };
       }
     });
@@ -405,6 +401,18 @@ function ChildPage() {
       });
     }
   }, [blindMode, items]);
+
+  function generateShareUrl() {
+    const data = {
+      wordBank,
+      items,
+      answers,
+      stats,
+      blindMode
+    };
+    const encoded = btoa(JSON.stringify(data));
+    return `${window.location.origin}/?view=child-progress&data=${encoded}`;
+  }
 
   const shuffledEn = React.useMemo(() => {
     const arr = [...items];
@@ -445,6 +453,18 @@ function ChildPage() {
         </div>
         <div className="mt-2 text-sm text-gray-600">נכונות: {stats.correct} · שגיאות: {stats.wrong}</div>
       </div>
+      <div className="text-center">
+        <button 
+          onClick={() => {
+            const url = generateShareUrl();
+            navigator.clipboard.writeText(url);
+            alert('קישור הועתק ללוח (clipboard)!');
+          }}
+          className="bg-purple-600 text-white px-6 py-2 rounded text-sm"
+        >
+          שתף התקדמות עם הורה
+        </button>
+      </div>
       <section className="space-y-3">
         <h3 className="font-semibold">עברית → אנגלית</h3>
         {items.map((it, idx) => (
@@ -479,6 +499,135 @@ function ChildPage() {
           />
         ))}
       </section>
+      <div className="text-center mt-8 mb-4">
+        <button 
+          onClick={() => {
+            const url = generateShareUrl();
+            navigator.clipboard.writeText(url);
+            alert('קישור הועתק ללוח (clipboard)!');
+          }}
+          className="bg-purple-600 text-white px-6 py-2 rounded text-sm"
+        >
+          שתף התקדמות עם הורה
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChildProgressPage({ navigate }) {
+  const [data, setData] = React.useState(null);
+  const [error, setError] = React.useState("");
+
+  React.useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const encoded = p.get("data");
+    if (!encoded) {
+      setError("Missing data parameter");
+      return;
+    }
+    try {
+      const decoded = JSON.parse(atob(encoded));
+      setData(decoded);
+    } catch (e) {
+      setError("Failed to decode data: " + e.message);
+    }
+  }, []);
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow mt-10">
+        <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
+        <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow mt-10">
+        <div>טוען...</div>
+      </div>
+    );
+  }
+
+  const { wordBank, items, answers, stats, blindMode } = data;
+
+  return (
+    <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow mt-10 space-y-6">
+      <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
+      <h2 className="text-xl font-bold">התקדמות הילד</h2>
+      
+      <div className="bg-gray-50 p-4 rounded-lg border">
+        <h3 className="font-semibold mb-3">סיכום</h3>
+        <table border="1" cellPadding="4" className="w-full">
+          <tbody>
+            <tr className="bg-green-100">
+              <td className="font-semibold">תשובות נכונות</td>
+              <td className="text-lg font-bold text-green-700">{stats.correct}</td>
+            </tr>
+            <tr className="bg-red-100">
+              <td className="font-semibold">תשובות לא נכונות</td>
+              <td className="text-lg font-bold text-red-700">{stats.wrong}</td>
+            </tr>
+            <tr className="bg-blue-100">
+              <td className="font-semibold">סה"כ שאלות</td>
+              <td className="text-lg font-bold text-blue-700">{(stats.correct + stats.wrong) || items.length * 2}</td>
+            </tr>
+            <tr className="bg-yellow-100">
+              <td className="font-semibold">אחוז הצלחה</td>
+              <td className="text-lg font-bold text-yellow-700">
+                {stats.correct + stats.wrong > 0 
+                  ? Math.round((stats.correct / (stats.correct + stats.wrong)) * 100) 
+                  : 0}%
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 className="font-semibold mb-3">פרטי התשובות</h3>
+        <div className="space-y-3">
+          {items.map((item, idx) => {
+            const heId = `he-${item.id}`;
+            const enId = `en-${item.id}`;
+            const heAnswer = answers[heId];
+            const enAnswer = answers[enId];
+            const heCorrect = heAnswer?.correct;
+            const enCorrect = enAnswer?.correct;
+            const correctWord = wordBank[item.correct_option_index];
+
+            return (
+              <div key={item.id} className="bg-gray-50 p-4 rounded-lg border">
+                <div className="font-semibold text-sm text-gray-600 mb-2">{idx + 1}. {item.id}</div>
+                
+                <div className="mb-3">
+                  <div className="text-sm text-gray-700 mb-1"><strong>עברית:</strong> {item.hebrew_sentence}</div>
+                  <div className={`text-sm px-2 py-1 rounded inline-block ${heCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {heCorrect ? '✓ נכון' : '✗ לא נכון'}
+                  </div>
+                  {heAnswer && <div className="text-xs text-gray-600 mt-1">תשובה: <strong>{wordBank[heAnswer.selected] || wordBank[heAnswer.wrongs?.[0]] || '-'}</strong></div>}
+                </div>
+
+                <div>
+                  <div className="text-sm text-gray-700 mb-1"><strong>אנגלית:</strong> {item.english_sentence}</div>
+                  <div className={`text-sm px-2 py-1 rounded inline-block ${enCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {enCorrect ? '✓ נכון' : '✗ לא נכון'}
+                  </div>
+                  {enAnswer && <div className="text-xs text-gray-600 mt-1">תשובה: <strong>{wordBank[enAnswer.selected] || wordBank[enAnswer.wrongs?.[0]] || '-'}</strong></div>}
+                </div>
+
+                <div className="text-xs text-gray-600 mt-2">
+                  <strong>תשובה נכונה:</strong> {correctWord}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
