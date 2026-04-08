@@ -455,7 +455,7 @@ function ChildPage() {
             </span>
           ))}
         </div>
-        <div className="mt-2 text-sm text-gray-600">נכונות: {stats.correct} · שגיאות: {stats.wrong}</div>
+        {!blindMode && <div className="mt-2 text-sm text-gray-600">נכונות: {stats.correct} · שגיאות: {stats.wrong}</div>}
       </div>
       <div className="text-center">
         <button 
