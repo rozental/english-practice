@@ -462,6 +462,9 @@ function ChildPage() {
 
 function QuestionRow({ id, index, total, sentence, correctIndex, wordBank, answers, onPick, blindMode }) {
   const row = answers[id] || { correct: false, wrongs: [] };
+  // In blind mode, track the last selected answer (not necessarily wrong, just last picked)
+  const lastSelectedIdx = blindMode && row.wrongs.length > 0 ? row.wrongs[row.wrongs.length - 1] : null;
+  
   return (
     <div className="bg-white p-4 rounded-2xl shadow-sm">
       <div className="text-sm text-gray-500 mb-1">[{index}/{total}]</div>
@@ -469,7 +472,11 @@ function QuestionRow({ id, index, total, sentence, correctIndex, wordBank, answe
       <div className="grid grid-cols-2 gap-2">
         {wordBank.map((w, idx) => {
           let extra = "border hover:shadow active:translate-y-[1px]";
-          if (!blindMode) {
+          if (blindMode) {
+            // In blind mode, only show gray for the last selected answer
+            if (lastSelectedIdx === idx) extra += " bg-gray-200 border-gray-400";
+          } else {
+            // Normal mode: show green for correct, red for wrong attempts
             if (row.correct && idx === correctIndex) extra += " bg-green-100 border-green-400";
             else if (row.wrongs.includes(idx)) extra += " bg-red-100 border-red-300";
           }
