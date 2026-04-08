@@ -25,7 +25,7 @@ function MainRouter() {
     setRoute(getRoute());
   }
   if (route.page === "parent") return <ParentPage navigate={navigate} />;
-  if (route.page === "reports") return <ReportsPage navigate={navigate} />;
+  if (route.page === "reports") return <AllReportsPage navigate={navigate} />;
   if (route.page === "child") return <ChildPage />;
   return <LandingPage navigate={navigate} />;
 }
@@ -61,6 +61,7 @@ function ParentPage({ navigate }) {
   const [result, setResult] = React.useState(null);
   const [error, setError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [blindMode, setBlindMode] = React.useState(false);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -86,7 +87,9 @@ function ParentPage({ navigate }) {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'שגיאה בשמירה');
-      setResult(`https://english-practice-drab.vercel.app/?code=${encodeURIComponent(code.trim())}`);
+      let url = `https://english-practice-drab.vercel.app/?code=${encodeURIComponent(code.trim())}`;
+      if (blindMode) url += '&blind=1';
+      setResult(url);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -110,6 +113,17 @@ function ParentPage({ navigate }) {
           value={json}
           onChange={e => setJson(e.target.value)}
         />
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="blindMode"
+            checked={blindMode}
+            onChange={e => setBlindMode(e.target.checked)}
+          />
+          <label htmlFor="blindMode" className="text-sm">
+            מצב עיוור: הילד לא יראה אם התשובה נכונה או לא
+          </label>
+        </div>
         <button className="bg-blue-600 text-white px-4 py-2 rounded" type="submit" disabled={saving}>{saving ? 'שומר...' : 'שמור והפק קישור'}</button>
       </form>
       {error && <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4 mt-4">{error}</div>}
@@ -259,6 +273,7 @@ function ChildPage() {
   const [translations, setTranslations] = React.useState([]);
   const [answers, setAnswers] = React.useState({});
   const [stats, setStats] = React.useState({ correct: 0, wrong: 0 });
+  const [blindMode, setBlindMode] = React.useState(false);
   // Session tracking
   const sessionIdRef = React.useRef(null);
   const sessionStartRef = React.useRef(null);
@@ -275,6 +290,8 @@ function ChildPage() {
   React.useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const code = p.get("code");
+    const blind = p.get("blind") === "1";
+    setBlindMode(blind);
     if (!code) {
       setStatus("error");
       setMsg("Missing ?code= in URL. Example: ?code=tal");
@@ -418,6 +435,7 @@ function ChildPage() {
             wordBank={wordBank}
             answers={answers}
             onPick={onPick}
+            blindMode={blindMode}
           />
         ))}
       </section>
@@ -434,6 +452,7 @@ function ChildPage() {
             wordBank={wordBank}
             answers={answers}
             onPick={onPick}
+            blindMode={blindMode}
           />
         ))}
       </section>
@@ -441,7 +460,7 @@ function ChildPage() {
   );
 }
 
-function QuestionRow({ id, index, total, sentence, correctIndex, wordBank, answers, onPick }) {
+function QuestionRow({ id, index, total, sentence, correctIndex, wordBank, answers, onPick, blindMode }) {
   const row = answers[id] || { correct: false, wrongs: [] };
   return (
     <div className="bg-white p-4 rounded-2xl shadow-sm">
@@ -450,8 +469,10 @@ function QuestionRow({ id, index, total, sentence, correctIndex, wordBank, answe
       <div className="grid grid-cols-2 gap-2">
         {wordBank.map((w, idx) => {
           let extra = "border hover:shadow active:translate-y-[1px]";
-          if (row.correct && idx === correctIndex) extra += " bg-green-100 border-green-400";
-          else if (row.wrongs.includes(idx)) extra += " bg-red-100 border-red-300";
+          if (!blindMode) {
+            if (row.correct && idx === correctIndex) extra += " bg-green-100 border-green-400";
+            else if (row.wrongs.includes(idx)) extra += " bg-red-100 border-red-300";
+          }
           return (
             <button
               key={idx}
