@@ -360,25 +360,27 @@ function ChildPage() {
     });
   }
 
-  function onPick(id, optionIdx) {
+  const onPick = React.useCallback((id, optionIdx) => {
     const cleanId = id.replace(/^he-|^en-/, "");
     const item = items.find(x => x.id === cleanId);
     if (!item) return;
     const isRight = optionIdx === (item.correct_option_index ?? 0);
     setAnswers(prev => {
       const row = prev[id] || { correct: false, wrongs: [], selected: null };
-      if (row.correct) return prev;
-      const next = { ...row };
       if (blindMode) {
-        // In blind mode, just track the currently selected answer
+        // In blind mode, always allow updates
+        const next = { ...row };
         next.selected = optionIdx;
         if (isRight) next.correct = true;
+        return { ...prev, [id]: next };
       } else {
-        // Normal mode: track all wrong attempts
+        // Normal mode: only update if not already correct
+        if (row.correct) return prev;
+        const next = { ...row };
         if (isRight) next.correct = true;
         else if (!next.wrongs.includes(optionIdx)) next.wrongs = [...next.wrongs, optionIdx];
+        return { ...prev, [id]: next };
       }
-      return { ...prev, [id]: next };
     });
     setStats(s => {
       const n = { ...s };
@@ -388,7 +390,7 @@ function ChildPage() {
       setTimeout(() => logProgress(n.correct, n.wrong), 0);
       return n;
     });
-  }
+  }, [blindMode, items]);
 
   const shuffledEn = React.useMemo(() => {
     const arr = [...items];
