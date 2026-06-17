@@ -37,7 +37,42 @@
     </script>
 
     <!-- טעינת קובץ ה־JSX (cache-bust) -->
-    <!-- טעינת קובץ JS פשוט (לבדיקה, ללא Babel) -->
-    <script src="./app.js"></script>
+    <!-- Diagnostic loader: fetch app.jsx, scan for import/export, then compile with Babel and run -->
+    <script>
+      (async function(){
+        try {
+          const url = './app.jsx?v=deploy-20260617-2';
+          const resp = await fetch(url, {cache: 'no-store'});
+          if (!resp.ok) throw new Error('Failed to fetch '+url+' — status '+resp.status);
+          const txt = await resp.text();
+
+          // Scan for import/export tokens (report line numbers) to avoid browser parsing them directly
+          const lines = txt.split(/\n/);
+          const re = /\b(import|export)\b/;
+          const hits = [];
+          lines.forEach((line, idx) => { if (re.test(line)) hits.push({line: idx+1, text: line.trim()}); });
+          if (hits.length > 0) {
+            const preview = lines.slice(Math.max(0, hits[0].line-3), hits[0].line+3).join('\n');
+            document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Found import/export in '+url+' at lines:\n'
+              + hits.map(h => h.line+': '+h.text).join('\n') + '\n\nNearby preview:\n'+preview + '\n\n(If you expect module syntax, load with type="module" or remove imports for browser-side code.)</pre>';
+            return;
+          }
+
+          // No import/export found — compile with Babel and execute safely
+          if (typeof Babel === 'undefined' || !Babel.transform) {
+            document.body.innerHTML = '<pre style="color:orange;padding:1em;white-space:pre-wrap;">Babel not available to compile app.jsx; ensure the Babel script is loaded.</pre>';
+            return;
+          }
+          const compiled = Babel.transform(txt, { presets: ['react'] }).code;
+          const s = document.createElement('script');
+          s.type = 'application/javascript';
+          s.text = compiled;
+          document.body.appendChild(s);
+        } catch (err) {
+          document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Loader error: '+(err && err.stack ? err.stack : err)+'</pre>';
+          console.error('diagnostic loader error', err);
+        }
+      })();
+    </script>
   </body>
 </html>
