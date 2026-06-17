@@ -47,6 +47,7 @@
     <!-- טעינת קובץ ה־JSX (cache-bust) -->
     <!-- Diagnostic loader: fetch app.jsx, scan for import/export, then compile with Babel and run -->
     <script>
+      function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
       (async function(){
         try {
           const url = './app.jsx?v=deploy-20260617-2';
@@ -72,6 +73,14 @@
             return;
           }
           const compiled = Babel.transform(txt, { presets: ['react'] }).code;
+          // If compiled output still contains import/export, show a preview instead of
+          // appending to avoid the browser syntax error and to make diagnosis easier.
+          if (/\b(import|export)\b/.test(compiled)) {
+            const preview = compiled.slice(0, 2000);
+            document.body.innerHTML = '<pre style="color:purple;padding:1em;white-space:pre-wrap;">Compiled output contains import/export tokens. Preview:\n\n'+
+              escapeHtml(preview) + '\n\n(Showing first 2000 chars)</pre>';
+            return;
+          }
           const s = document.createElement('script');
           s.type = 'application/javascript';
           s.text = compiled;
