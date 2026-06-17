@@ -72,7 +72,9 @@
             document.body.innerHTML = '<pre style="color:orange;padding:1em;white-space:pre-wrap;">Babel not available to compile app.jsx; ensure the Babel script is loaded.</pre>';
             return;
           }
-          const compiled = Babel.transform(txt, { presets: ['react'] }).code;
+          // Compile using the classic JSX runtime so Babel won't emit `import` statements
+          // that the browser can't parse when executing as a normal script.
+          const compiled = Babel.transform(txt, { presets: [[ 'react', { runtime: 'classic' } ]] }).code;
           // If compiled output still contains import/export, show a preview instead of
           // appending to avoid the browser syntax error and to make diagnosis easier.
           if (/\b(import|export)\b/.test(compiled)) {
