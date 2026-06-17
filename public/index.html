@@ -21,6 +21,63 @@
   </head>
   <body class="bg-gray-50 text-gray-800">
   <div id="root" class="min-h-screen"></div>
-  <script src="./app.js"></script>
+
+  <!-- Global early error handlers to surface errors visibly -->
+  <script>
+    window.addEventListener('error', (e) => {
+      const msg = e?.message || String(e);
+      const file = e?.filename || location.href;
+      const line = e?.lineno || 0;
+      const col = e?.colno || 0;
+      const stack = e?.error?.stack || e?.stack || '';
+      const out = ['Global error: '+msg, 'file: '+file, 'line: '+line+':'+col, stack].join('\n\n');
+      try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">'+out+'</pre>'; } catch(_){ }
+      console.error('Global error pre-app:', e);
+    });
+    window.addEventListener('unhandledrejection', (e) => {
+      const reason = e?.reason || e;
+      const msg = reason?.message || String(reason);
+      const stack = reason?.stack || '';
+      const out = ['Unhandled rejection: '+msg, stack].join('\n\n');
+      try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">'+out+'</pre>'; } catch(_){ }
+      console.error('Unhandled rejection pre-app:', e);
+    });
+  </script>
+
+  <!-- Safe loader: fetch JSX, compile with Babel (classic runtime), then execute and mount -->
+  <script>
+    (async function(){
+      try {
+        const url = './app.jsx?v=deploy-20260617-4';
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) throw new Error('Failed to fetch '+url+' status='+r.status);
+        const src = await r.text();
+
+        if (typeof Babel === 'undefined' || !Babel.transform) {
+          throw new Error('Babel not available on the page');
+        }
+
+        const compiled = Babel.transform(src, { presets: [[ 'react', { runtime: 'classic' } ]] }).code;
+
+        const s = document.createElement('script');
+        s.type = 'application/javascript';
+        s.text = compiled;
+        document.body.appendChild(s);
+
+        // Mount the app after the compiled script is loaded
+        try {
+          const rootEl = document.getElementById('root');
+          const root = ReactDOM.createRoot(rootEl);
+          root.render(React.createElement(App));
+        } catch (mountErr) {
+          document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Mount error: '+(mountErr && mountErr.stack ? mountErr.stack : mountErr)+'</pre>';
+          console.error('mount error', mountErr);
+        }
+      } catch (err) {
+        document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Loader error: '+(err && err.stack ? err.stack : err)+'</pre>';
+        console.error('loader error', err);
+      }
+    })();
+  </script>
   </body>
 </html>
