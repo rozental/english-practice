@@ -105,6 +105,7 @@ function ParentPage({ navigate }) {
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
       <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
+    <button className="text-blue-600 underline mb-4" onClick={() => { window.location.href = '/'; }}>← חזרה לדף הבית</button>
       <h2 className="text-xl font-bold mb-2">הורה: יצירת סט שאלות</h2>
       <form onSubmit={handleSave} className="space-y-4">
         <input
@@ -180,6 +181,7 @@ function ReportsPage() {
   return (
     <div>
       <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
+    <button className="text-blue-600 underline mb-4" onClick={() => { window.location.href = '/'; }}>← חזרה לדף הבית</button>
       <h2 className="text-xl font-bold mb-2">דו"חות וסטטיסטיקות</h2>
       {msg && <div>{msg}</div>}
       {sessions.length > 0 && (
@@ -645,6 +647,7 @@ function ViewChildReportPage({ navigate }) {
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-2xl shadow mt-10">
       <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
+    <button className="text-blue-600 underline mb-4" onClick={() => { window.location.href = '/'; }}>← חזרה לדף הבית</button>
       <h2 className="text-xl font-bold mb-2">הורה: צפיה בדוחות ילדים</h2>
       
       <div className="space-y-4">
@@ -712,6 +715,7 @@ function ChildProgressPage({ navigate }) {
     return (
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-2xl shadow mt-10">
         <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
+      <button className="text-blue-600 underline mb-4" onClick={() => { window.location.href = '/'; }}>← חזרה לדף הבית</button>
         <div className="bg-red-100 border border-red-400 text-red-800 rounded p-4">
           {error}
         </div>
@@ -732,6 +736,7 @@ function ChildProgressPage({ navigate }) {
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow mt-10 space-y-6">
       <button className="text-blue-600 underline mb-4" onClick={() => navigate('/')}>← חזרה לדף הבית</button>
+    <button className="text-blue-600 underline mb-4" onClick={() => { window.location.href = '/'; }}>← חזרה לדף הבית</button>
       <h2 className="text-xl font-bold">התקדמות הילד</h2>
       
       <div className="bg-gray-50 p-4 rounded-lg border">
