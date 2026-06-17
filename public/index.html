@@ -37,36 +37,7 @@
     </script>
 
     <!-- טעינת קובץ ה־JSX (cache-bust) -->
-    <script type="text/babel" data-presets="react" src="./app.jsx?v=deploy-20260617-2"></script>
-
-    <!-- הרצת האפליקציה עם טיפול בשגיאות גלובליות להצגת שגיאות בדפדפן -->
-    <script type="text/babel">
-      // גלובלי: תפס שגיאות לא מטופלות והצג על המסך
-      window.addEventListener('error', (e) => {
-        const msg = e?.message || String(e);
-        document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Global error: '+msg+'</pre>';
-        console.error(e);
-      });
-      window.addEventListener('unhandledrejection', (e) => {
-        const msg = e?.reason?.message || String(e?.reason || e);
-        document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Unhandled rejection: '+msg+'</pre>';
-        console.error(e);
-      });
-
-      (function() {
-        try {
-          const rootEl = document.getElementById('root');
-          if (typeof App !== 'function') {
-            document.body.innerHTML += '<div style="color:red;padding:1em">⚠️ פונקציית App לא נמצאה בקובץ ./app.jsx</div>';
-            return;
-          }
-          const root = ReactDOM.createRoot(rootEl);
-          root.render(<App />);
-        } catch (err) {
-          document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Render error: '+(err && err.stack ? err.stack : err)+'</pre>';
-          console.error(err);
-        }
-      })();
-    </script>
+    <!-- טעינת קובץ JS פשוט (לבדיקה, ללא Babel) -->
+    <script src="./app.js"></script>
   </body>
 </html>
