@@ -26,12 +26,20 @@
     <script>
       window.addEventListener('error', (e) => {
         const msg = e?.message || String(e);
-        try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Global error: '+msg+'</pre>'; } catch(_){}
+        const file = e?.filename || location.href;
+        const line = e?.lineno || 0;
+        const col = e?.colno || 0;
+        const stack = e?.error?.stack || e?.stack || '';
+        const out = ['Global error: '+msg, 'file: '+file, 'line: '+line+':'+col, stack].join('\n\n');
+        try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">'+out+'</pre>'; } catch(_){ }
         console.error('Global error pre-app:', e);
       });
       window.addEventListener('unhandledrejection', (e) => {
-        const msg = e?.reason?.message || String(e?.reason || e);
-        try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Unhandled rejection: '+msg+'</pre>'; } catch(_){}
+        const reason = e?.reason || e;
+        const msg = reason?.message || String(reason);
+        const stack = reason?.stack || '';
+        const out = ['Unhandled rejection: '+msg, stack].join('\n\n');
+        try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">'+out+'</pre>'; } catch(_){ }
         console.error('Unhandled rejection pre-app:', e);
       });
     </script>
