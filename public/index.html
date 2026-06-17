@@ -22,8 +22,22 @@
   <body class="bg-gray-50 text-gray-800">
     <div id="root" class="min-h-screen"></div>
 
-  <!-- טעינת קובץ ה־JSX (cache-bust) -->
-  <script type="text/babel" data-presets="react" src="./app.jsx?v=deploy-20260617-2"></script>
+    <!-- גלובלי: טיפול בשגיאות מוקדם כדי ללכוד שגיאות בזמן טעינת app.jsx -->
+    <script>
+      window.addEventListener('error', (e) => {
+        const msg = e?.message || String(e);
+        try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Global error: '+msg+'</pre>'; } catch(_){}
+        console.error('Global error pre-app:', e);
+      });
+      window.addEventListener('unhandledrejection', (e) => {
+        const msg = e?.reason?.message || String(e?.reason || e);
+        try { document.body.innerHTML = '<pre style="color:red;padding:1em;white-space:pre-wrap;">Unhandled rejection: '+msg+'</pre>'; } catch(_){}
+        console.error('Unhandled rejection pre-app:', e);
+      });
+    </script>
+
+    <!-- טעינת קובץ ה־JSX (cache-bust) -->
+    <script type="text/babel" data-presets="react" src="./app.jsx?v=deploy-20260617-2"></script>
 
     <!-- הרצת האפליקציה עם טיפול בשגיאות גלובליות להצגת שגיאות בדפדפן -->
     <script type="text/babel">
