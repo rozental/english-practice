@@ -20,7 +20,8 @@
     </style>
   </head>
   <body class="bg-gray-50 text-gray-800">
-    <div id="root" class="min-h-screen"></div>
+  <div style="padding:12px;background:#f7f7f8;border-bottom:1px solid #eee;text-align:center;color:#333">DIAGNOSTIC: loader active (v3)</div>
+  <div id="root" class="min-h-screen"></div>
 
     <!-- גלובלי: טיפול בשגיאות מוקדם כדי ללכוד שגיאות בזמן טעינת app.jsx -->
     <script>
@@ -50,7 +51,7 @@
       function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
       (async function(){
         try {
-          const url = './app.jsx?v=deploy-20260617-2';
+          const url = './app.jsx?v=deploy-20260617-3';
           const resp = await fetch(url, {cache: 'no-store'});
           if (!resp.ok) throw new Error('Failed to fetch '+url+' — status '+resp.status);
           const txt = await resp.text();
