@@ -404,9 +404,31 @@ function ChildPage() {
         }
       })
       .catch(e => {
-        console.error("load error", e);
-        setStatus("error");
-        setMsg(e?.message || String(e));
+        console.error("load error, falling back to public/sample.json", e);
+        // Try client-side fallback to public/sample.json (works when serving static files)
+        fetch('/sample.json')
+          .then(async r2 => {
+            if (!r2.ok) throw new Error('sample.json not found');
+            const obj2 = await r2.json().catch(() => ({}));
+            const wb = Array.isArray(obj2.word_bank_order) ? obj2.word_bank_order : (obj2.word_bank || []);
+            const it = Array.isArray(obj2.items) ? obj2.items : [];
+            const tr = Array.isArray(obj2.translations_he) ? obj2.translations_he : (obj2.translations || []);
+            setWordBank(wb);
+            setItems(it);
+            setTranslations(tr);
+            if (wb.length === 0 || it.length === 0) {
+              setStatus('empty');
+              setMsg('התרגיל מהשרת ריק (אין מילים או אין שאלות).');
+            } else {
+              setStatus('ready');
+              setMsg('');
+            }
+          })
+          .catch(err2 => {
+            console.error('fallback load failed', err2);
+            setStatus('error');
+            setMsg(e?.message || String(e));
+          });
       });
   }, []);
 

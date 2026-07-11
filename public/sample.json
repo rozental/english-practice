@@ -1,4 +1,16 @@
 {
+  "word_bank_order": ["apple", "banana", "cat", "dog"],
+  "translations_he": ["תפוח", "בננה", "חתול", "כלב"],
+  "items": [
+    {
+      "id": "1",
+      "hebrew_sentence": "החיה הזו אומרת מיאו",
+      "english_sentence": "This animal says meow",
+      "correct_option_index": 2
+    }
+  ]
+}
+{
   "word_bank_order": ["Walk","Understand","Ignore","Brave","Clearly"],
   "items": [
     { "id": "q1",  "hebrew_sentence": "הוא ____ לבית הספר",         "english_sentence": "He ____ to school",                       "correct_option_index": 0 },
