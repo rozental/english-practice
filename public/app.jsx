@@ -39,8 +39,29 @@ function getRoute() {
   if (path.startsWith("/reports")) return { page: "reports" };
   if (path.startsWith("/view-child-report")) return { page: "view-child-report" };
   if (search.includes('view=child-progress')) return { page: "child-progress" };
-  if (path.startsWith("/child") || search.includes('code=')) return { page: "child" };
+  if (path.startsWith("/child") || search.includes('code=') || search.includes('data=')) return { page: "child" };
   return { page: "landing" };
+}
+
+// UTF-8-safe base64 helpers for encoding JSON with unicode characters
+function encodeForUrl(obj) {
+  const s = typeof obj === 'string' ? obj : JSON.stringify(obj);
+  try {
+    return btoa(unescape(encodeURIComponent(s)));
+  } catch (e) {
+    // fallback: plain btoa (may fail on high unicode)
+    return btoa(s);
+  }
+}
+
+function decodeFromUrl(encoded) {
+  try {
+    const str = decodeURIComponent(escape(atob(encoded)));
+    return JSON.parse(str);
+  } catch (e) {
+    // try naive decode
+    try { return JSON.parse(atob(encoded)); } catch (e2) { throw e; }
+  }
 }
 
 function LandingPage({ navigate }) {
@@ -98,12 +119,20 @@ function ParentPage({ navigate }) {
       setResult(url);
     } catch (e) {
       // If the server save failed (or the static server doesn't support POST),
-      // still produce a client-only link so the parent can share it immediately.
+      // produce a client-only link that embeds the JSON data so the child
+      // can load the exact questions without a backend.
       try {
-        let url = `${window.location.origin}/?code=${encodeURIComponent(code.trim())}`;
-        if (blindMode) url += '&blind=1';
+        const payload = {
+          wordBank: obj.word_bank_order || obj.word_bank || [],
+          items: obj.items || [],
+          translations: obj.translations_he || obj.translations || [],
+          blindMode: !!blindMode,
+          allowedViewer: 'child-embedded'
+        };
+        const enc = encodeForUrl(payload);
+        let url = `${window.location.origin}/?data=${encodeURIComponent(enc)}`;
         setResult(url);
-        setError('Server save failed; produced a client-only link. ' + (e?.message || e));
+        setError('Server save failed; produced a client-only embedded link. ' + (e?.message || e));
       } catch (err2) {
         setError(e.message || String(e));
       }
@@ -166,6 +195,24 @@ function ReportsPage() {
 
   React.useEffect(() => {
     const p = new URLSearchParams(window.location.search);
+    const embedded = p.get('data');
+    if (embedded) {
+      try {
+        const obj = decodeFromUrl(embedded);
+        const wb = Array.isArray(obj.wordBank) ? obj.wordBank : [];
+        const it = Array.isArray(obj.items) ? obj.items : [];
+        const tr = Array.isArray(obj.translations) ? obj.translations : [];
+        setWordBank(wb);
+        setItems(it);
+        setTranslations(tr);
+        setStatus('ready');
+        setMsg('');
+        return;
+      } catch (err) {
+        console.error('embedded data decode failed', err);
+        // fallthrough to code-based load
+      }
+    }
     const code = p.get("code");
     if (!code) {
       setMsg("Missing ?code= in URL. Example: ?code=tal");
@@ -425,7 +472,7 @@ function ChildPage() {
       blindMode,
       allowedViewer: "parent-portal-only"
     };
-    const encoded = btoa(JSON.stringify(data));
+    const encoded = encodeForUrl(data);
     return `${window.location.origin}/?view=child-progress&data=${encoded}`;
   }
 
@@ -559,7 +606,7 @@ function ViewChildReportPage({ navigate }) {
         return;
       }
 
-      const decoded = JSON.parse(atob(encoded));
+      const decoded = decodeFromUrl(encoded);
       
       // Verify the link is from parent portal
       if (decoded.allowedViewer !== "parent-portal-only") {
@@ -708,7 +755,7 @@ function ChildProgressPage({ navigate }) {
       return;
     }
     try {
-      const decoded = JSON.parse(atob(encoded));
+      const decoded = decodeFromUrl(encoded);
       // Check if this link is only for parent portal
       if (decoded.allowedViewer === "parent-portal-only") {
         setError("לא ניתן להציג דוח זה ישירות. אנא גשו לדף הבית ובחרו 'הורה: צפיה בדוחות ילדים'");
