@@ -15,14 +15,29 @@ async function readJson(req) {
 }
 
 export default async function handler(req, res) {
-res.setHeader('Cache-Control', 'no-store');
+  try { if (res && typeof res.setHeader === 'function') res.setHeader('Cache-Control', 'no-store'); } catch(_){}
   try {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
     const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing envs", { SUPABASE_URL: !!SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY: !!SUPABASE_SERVICE_ROLE_KEY });
-      return res.status(500).json({ error: "missing env", detail: "SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set" });
+      // No Supabase configured — write to local sample.json as a fallback so the app can use it.
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const body = await readJson(req);
+        const out = {
+          word_bank_order: body.word_bank_order || body.word_bank || [],
+          translations_he: body.translations_he || body.translations || [],
+          items: body.items || []
+        };
+        const p = path.join(process.cwd(), 'public', 'sample.json');
+        fs.writeFileSync(p, JSON.stringify(out, null, 2), 'utf8');
+        return res.status(200).json({ ok: true, fallback: 'wrote sample.json' });
+      } catch (fsErr) {
+        console.error('save-set local write failed', fsErr);
+        return res.status(500).json({ error: 'internal', detail: String(fsErr && fsErr.message ? fsErr.message : fsErr) });
+      }
     }
 
     const body = await readJson(req);

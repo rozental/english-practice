@@ -1,3 +1,26 @@
+# english-practice — build & run
+
+This repository serves a small React app in `public/` and a few serverless API handlers in `api/`.
+
+Quick setup (requires Node.js >= 16):
+
+1. Install dev deps:
+
+```bash
+npm install
+```
+
+2. Build the client bundle:
+
+```bash
+npm run build
+```
+
+This produces `public/app.js` (a minified bundle). The app's `public/index.html` is already set to load `/app.js` and production React UMD builds.
+
+Deployment notes:
+- If you want real data instead of the local sample, set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in your deployment environment and redeploy.
+- To avoid external CDNs, you can vendor `react.production.min.js` and `react-dom.production.min.js` into `public/vendor/` and update `public/index.html` to reference them.
 # אתר תרגול אנגלית – ללא OpenAI
 
 ## איך עובדים

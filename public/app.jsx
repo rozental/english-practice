@@ -91,13 +91,22 @@ function ParentPage({ navigate }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ parent_code: code.trim(), ...obj })
       });
-      const data = await resp.json();
+      const data = await resp.json().catch(() => ({}));
       if (!resp.ok) throw new Error(data.error || 'שגיאה בשמירה');
       let url = `https://english-practice-drab.vercel.app/?code=${encodeURIComponent(code.trim())}`;
       if (blindMode) url += '&blind=1';
       setResult(url);
     } catch (e) {
-      setError(e.message);
+      // If the server save failed (or the static server doesn't support POST),
+      // still produce a client-only link so the parent can share it immediately.
+      try {
+        let url = `${window.location.origin}/?code=${encodeURIComponent(code.trim())}`;
+        if (blindMode) url += '&blind=1';
+        setResult(url);
+        setError('Server save failed; produced a client-only link. ' + (e?.message || e));
+      } catch (err2) {
+        setError(e.message || String(e));
+      }
     } finally {
       setSaving(false);
     }

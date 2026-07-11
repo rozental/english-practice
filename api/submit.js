@@ -2,7 +2,6 @@
 export const config = { runtime: "edge" };
 
 export default async function handler(req) {
-res.setHeader('Cache-Control', 'no-store');
   // CORS בסיסי (אופציונלי)
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
